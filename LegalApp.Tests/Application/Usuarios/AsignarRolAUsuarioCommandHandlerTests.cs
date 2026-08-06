@@ -7,6 +7,7 @@ using Dominio.Entidades;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Aplicacion.Excepciones;
 
 namespace Tests.Application.Usuarios
 {
@@ -92,7 +93,7 @@ namespace Tests.Application.Usuarios
         }
 
         [Fact]
-        public async Task Handle_RolNoExiste_LanzaExcepcion()
+        public async Task Handle_RolNoExiste_LanzaNotFoundException()
         {
             // Arrange
             var usuario = new Usuario("Juan", "juan@test.com", "hash")
@@ -116,14 +117,14 @@ namespace Tests.Application.Usuarios
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() =>
+            await Assert.ThrowsAsync<NotFoundException>(() =>
                 _handler.Handle(command, CancellationToken.None)
             );
             _usuarioRepositorioMock.Verify(r => r.GuardarCambiosAsync(), Times.Never);
         }
 
         [Fact]
-        public async Task Handle_UsuarioYaTieneRol_LanzaExcepcion()
+        public async Task Handle_UsuarioYaTieneRol_LanzaBusinessConflictException()
         {
             // Arrange
             var rol = new Rol
@@ -156,8 +157,9 @@ namespace Tests.Application.Usuarios
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() =>
-                _handler.Handle(command, CancellationToken.None)
+            await Assert.ThrowsAsync<BusinessConflictException>(() =>
+            _handler.Handle(command, CancellationToken.None)
+
             );
 
             _usuarioRepositorioMock.Verify(
