@@ -1,4 +1,4 @@
-﻿using API.Middlewares;
+using API.Middlewares;
 using Aplicacion.Casos;
 using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
@@ -53,6 +53,7 @@ builder.Services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
 builder.Services.AddScoped<IRolRepositorio, RolRepositorio>();
 builder.Services.AddScoped<IHashService, HashService>();
 builder.Services.AddScoped<IDemoResetService, DemoResetService>();
+builder.Services.AddScoped<DemoBootstrapService>();
 builder.Services.AddSingleton<ILoginLockoutService, LoginLockoutService>();
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssemblyContaining<Aplicacion.Usuarios.Handlers.CrearUsuarioCommandHandler>());
@@ -288,6 +289,36 @@ builder.Services.AddHsts(options =>
     options.ExcludedHosts.Clear();
 });
 var app = builder.Build();
+
+var seedDemoRequested = System.Array.Exists(
+    args,
+    arg => string.Equals(
+        arg,
+        "--seed-demo",
+        System.StringComparison.OrdinalIgnoreCase));
+
+if (seedDemoRequested)
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new System.InvalidOperationException(
+            "El seed demo solo está permitido en Development.");
+    }
+
+    using var scope = app.Services.CreateScope();
+
+    var demoBootstrap =
+        scope.ServiceProvider.GetRequiredService<DemoBootstrapService>();
+
+    var demoPassword =
+        app.Configuration["DemoBootstrap:Password"];
+
+    await demoBootstrap.BootstrapAsync(
+        demoPassword ?? string.Empty);
+
+    System.Console.WriteLine("DEMO_BOOTSTRAP_COMPLETED");
+    return;
+}
 
 app.UseForwardedHeaders();
 app.Use(async (context, next) =>
