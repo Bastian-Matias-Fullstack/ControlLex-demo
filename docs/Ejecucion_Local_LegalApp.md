@@ -1,101 +1,201 @@
- Ejecución Local – LegalApp
+# Ejecución local de ControlLex
 
-Este documento explica **cómo ejecutar la aplicación en local** cuando los archivos de configuración sensibles (`appsettings.json`) **no se versionan** por seguridad.
+Esta guía describe el procedimiento validado para reconstruir y ejecutar ControlLex en un ambiente local de Development a partir del repositorio.
 
----
+La ejecución local puede prepararse desde una base de datos nueva mediante EF Core migrations y un bootstrap explícito de datos demo, sin depender de una copia previa de la base de datos.
 
-## ✅ Requisitos
+## Requisitos
 
 - .NET SDK 8
-- SQL Server (LocalDB o instancia local)
-- (Opcional) Visual Studio 2022
+- SQL Server
+- Git
+- PowerShell o terminal equivalente
 
----
+## 1. Restaurar herramientas y dependencias
 
-## ⚙️ Configuración local (sin subir appsettings)
-
-Este repositorio **no versiona** `appsettings.json`, `appsettings.Development.json` ni archivos de entorno.
-
-Para ejecutar la aplicación en local debes crear tu propia configuración a partir de un template.
-
-### 1️⃣ Crear appsettings local desde template
-
-En la raíz del proyecto:
+Desde la raíz del repositorio:
 
 ```powershell
-Copy-Item .\appsettings.Template.json .\appsettings.Development.json
+dotnet tool restore
+dotnet restore ".\SoftwareJuridicoEscalableRobusto.sln"
 ```
 
-> `appsettings.Development.json` está ignorado por git y **no se sube al repositorio**.
+`dotnet-ef` está definido como herramienta local del repositorio mediante `dotnet-tools.json`.
 
----
+## 2. Crear la configuración de Development
 
-### 2️⃣ Completar valores requeridos
+Copiar la plantilla:
 
-Edita `appsettings.Development.json` y configura al menos:
+```powershell
+Copy-Item `
+    ".\appsettings.Example.Development.json" `
+    ".\appsettings.Development.json"
+```
 
-- `ConnectionStrings:DefaultConnection`
-- `Jwt:Key`
-- `Jwt:Issuer`
-- `Jwt:Audience`
-- Configuración CORS (si aplica)
+`appsettings.Development.json` está ignorado por Git.
 
-Ejemplo mínimo:
+Configurar la conexión a SQL Server según el ambiente local. Por ejemplo:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=LegalAppDb;Trusted_Connection=True;"
-  },
-  "Jwt": {
-    "Key": "CLAVE_LOCAL_DE_DESARROLLO",
-    "Issuer": "LegalApp",
-    "Audience": "LegalAppUsers"
+    "DefaultConnection": "Server=localhost;Database=ControlLex_Dev;Trusted_Connection=True;TrustServerCertificate=True"
   }
 }
 ```
 
----
+El nombre de la base de datos puede adaptarse al ambiente local del desarrollador.
 
-## 🗄️ Base de datos (migraciones)
+## 3. Configurar secretos locales
 
-el proyecto usa Entity Framework Core:
+Los valores sensibles de Development deben permanecer fuera del repositorio.
 
-```bash
-dotnet tool install --global dotnet-ef
-dotnet ef database update --project Infraestructura --startup-project API
+Configurar una clave JWT local:
+
+```powershell
+dotnet user-secrets set `
+    "Jwt:Key" `
+    "<CLAVE_LOCAL_SEGURA>" `
+    --project ".\API.csproj"
 ```
 
-Ajusta los nombres de proyecto según tu solución si es necesario.
+Configurar la contraseña utilizada para crear los usuarios demo:
 
----
-
-## ▶️ Ejecutar la aplicación
-
-Desde la raíz del proyecto:
-
-```bash
-dotnet run --project API.csproj
+```powershell
+dotnet user-secrets set `
+    "DemoBootstrap:Password" `
+    "<PASSWORD_DEMO_LOCAL>" `
+    --project ".\API.csproj"
 ```
 
-La aplicación quedará disponible en:
+No reutilizar contraseñas personales ni secretos pertenecientes a otros ambientes.
 
-- https://localhost:7266
-- Swagger: https://localhost:7266/swagger
+## 4. Aplicar las migrations
 
----
+```powershell
+dotnet ef database update `
+    --project ".\API.csproj" `
+    --startup-project ".\API.csproj"
+```
 
-## 🔐 Roles y permisos
+La base destino se obtiene desde:
 
-La aplicación trabaja con los siguientes roles:
+```text
+ConnectionStrings:DefaultConnection
+```
 
-- Admin
-- Abogado
-- Soporte
+Las migrations reconstruyen el esquema actual y los roles estáticos requeridos por la aplicación.
 
-La visibilidad en frontend es una capa UX; **los permisos reales se validan en backend**.
+## 5. Inicializar los datos demo
 
-Este archivo complementa el README principal del proyecto.
-para levantar en ambiente de produccion
+Sobre una base recién migrada y sin datos operativos:
 
+```powershell
+dotnet run `
+    --project ".\API.csproj" `
+    -- `
+    --seed-demo
+```
 
+El bootstrap inicializa actualmente:
+
+- 10 clientes ficticios
+- 3 usuarios demo
+- 3 relaciones usuario/rol
+- 15 casos del baseline demo
+
+Usuarios demo:
+
+| Usuario | Rol |
+|---|---|
+| admin@legal.cl | Admin |
+| abogado@legal.cl | Abogado |
+| soporte@legal.cl | Soporte |
+
+Los usuarios utilizan la contraseña configurada mediante `DemoBootstrap:Password`.
+
+El bootstrap está limitado a Development y requiere una base sin datos operativos. Si detecta datos existentes, aborta sin modificarlos.
+
+## 6. Ejecutar ControlLex
+
+Después de inicializar la base:
+
+```powershell
+dotnet run --project ".\API.csproj"
+```
+
+Con el perfil HTTP actual:
+
+```text
+http://localhost:5150
+```
+
+El arranque normal no ejecuta el bootstrap.
+
+## 7. Verificar salud
+
+Liveness:
+
+```text
+http://localhost:5150/health/live
+```
+
+Readiness de base de datos:
+
+```text
+http://localhost:5150/health/ready
+```
+
+En un ambiente correctamente configurado, ambos endpoints deben responder HTTP 200 con estado `Healthy`.
+
+## Migrations, bootstrap y reset
+
+Son responsabilidades diferentes:
+
+### EF Core migrations
+
+Reconstruyen y evolucionan el esquema de la base de datos.
+
+### Demo bootstrap
+
+Inicializa por primera vez una base Development/demo recién migrada con los datos necesarios para utilizar la aplicación.
+
+### Demo reset
+
+Restaura el baseline de una demo existente después de que haya sido utilizada o modificada.
+
+El bootstrap no reemplaza al reset.
+
+## Validación realizada
+
+La reproducibilidad local fue comprobada sobre una base de datos nueva siguiendo esta secuencia:
+
+```text
+dotnet tool restore
+        ↓
+dotnet ef database update
+        ↓
+12 migrations aplicadas
+        ↓
+3 roles / 0 datos operativos
+        ↓
+dotnet run -- --seed-demo
+        ↓
+10 clientes
+3 usuarios
+3 relaciones usuario/rol
+15 casos
+        ↓
+dotnet run
+        ↓
+health/live = Healthy
+health/ready = Healthy
+        ↓
+autenticación válida
+        ↓
+dashboard y casos accesibles
+```
+
+También se comprobó que una segunda ejecución del bootstrap sobre una base ya poblada aborta sin modificar información.
+
+Esta validación corresponde al ambiente local de Development. No constituye por sí sola una validación de despliegue productivo.
