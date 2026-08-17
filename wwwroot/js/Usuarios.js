@@ -163,28 +163,16 @@ function renderizarUsuarios(usuarios) {
     usuarios.forEach(usuario => {
         const tr = document.createElement("tr");
 
-        const protegidoBadge = usuario.esDemoProtegido
-            ? `<span class="badge text-bg-warning ms-2">Protegido</span>`
-            : "";
+        tr.append(
+            crearCeldaUsuario(usuario.id),
+            crearCeldaNombreUsuario(usuario.nombre, usuario.esDemoProtegido),
+            crearCeldaUsuario(usuario.email),
+            crearCeldaRolesTabla(usuario.roles)
+        );
 
-        const btnEditar = usuario.esDemoProtegido
-            ? `<button class="btn btn-sm btn-outline-secondary me-1" disabled title="Usuario demo protegido">✏️</button>`
-            : `<button class="btn btn-sm btn-outline-light me-1" onclick='abrirModalUsuario(${JSON.stringify(usuario)})'>✏️</button>`;
-
-        const btnEliminar = usuario.esDemoProtegido
-            ? `<button class="btn btn-sm btn-outline-secondary" disabled title="Usuario demo protegido">🗑️</button>`
-            : `<button class="btn btn-sm btn-outline-danger" onclick='eliminarUsuario(${usuario.id}, false)'>🗑️</button>`;
-
-        tr.innerHTML = `
-            <td>${usuario.id}</td>
-            <td>${usuario.nombre} ${protegidoBadge}</td>
-            <td>${usuario.email}</td>
-            <td>${formatearRoles(usuario.roles)}</td>
-            <td>
-                ${btnEditar}
-                ${btnEliminar}
-            </td>
-        `;
+        const acciones = crearCeldaUsuario();
+        agregarAccionesUsuario(acciones, usuario, false);
+        tr.appendChild(acciones);
 
         tbody.appendChild(tr);
     });
@@ -196,63 +184,132 @@ function renderizarCardsUsuarios(usuarios) {
     cardsContainer.innerHTML = "";
 
     usuarios.forEach(usuario => {
-        const roles = Array.isArray(usuario.roles) ? usuario.roles : [];
-        const rolesHtml = roles.length
-            ? roles.map(r => `<span class="badge bg-info-subtle text-info-emphasis me-1 mb-1">${r}</span>`).join("")
-            : `<span class="badge bg-secondary-subtle text-secondary-emphasis">Sin rol</span>`;
+        const card = document.createElement("article");
+        card.className = "usuario-card";
+        card.dataset.id = textoSeguroUsuario(usuario.id);
 
-        const protegido = !!usuario.esDemoProtegido;
+        const header = document.createElement("div");
+        header.className = "usuario-card-header";
+        const titleWrap = document.createElement("div");
+        titleWrap.className = "usuario-card-title-wrap";
+        const id = document.createElement("span");
+        id.className = "usuario-card-id";
+        id.textContent = `#${textoSeguroUsuario(usuario.id)}`;
+        const nombre = document.createElement("h6");
+        nombre.className = "usuario-card-title mb-1";
+        nombre.textContent = textoSeguroUsuario(usuario.nombre);
+        if (usuario.esDemoProtegido) nombre.appendChild(crearBadgeUsuario("badge text-bg-warning ms-2", "Protegido"));
+        const email = document.createElement("div");
+        email.className = "usuario-card-email";
+        email.textContent = textoSeguroUsuario(usuario.email);
+        titleWrap.append(id, nombre, email);
+        header.appendChild(titleWrap);
 
-        const btnEditar = protegido
-            ? `<button class="btn btn-sm btn-outline-secondary" disabled title="Usuario demo protegido">
-                    <i class="bi bi-pencil-fill"></i>
-               </button>`
-            : `<button class="btn btn-sm btn-outline-light btn-editar-usuario" onclick='abrirModalUsuario(${JSON.stringify(usuario)})' title="Editar">
-                    <i class="bi bi-pencil-fill"></i>
-               </button>`;
+        const body = document.createElement("div");
+        body.className = "usuario-card-body";
+        const filaRoles = document.createElement("div");
+        filaRoles.className = "usuario-card-row";
+        const labelRoles = document.createElement("span");
+        labelRoles.className = "usuario-card-label";
+        labelRoles.textContent = "Roles";
+        const roles = document.createElement("div");
+        roles.className = "usuario-card-value";
+        agregarRolesUsuario(roles, usuario.roles, "badge bg-info-subtle text-info-emphasis me-1 mb-1", "badge bg-secondary-subtle text-secondary-emphasis", "Sin rol");
+        filaRoles.append(labelRoles, roles);
+        body.appendChild(filaRoles);
 
-        const btnEliminar = protegido
-            ? `<button class="btn btn-sm btn-outline-secondary" disabled title="Usuario demo protegido">
-                    <i class="bi bi-trash-fill"></i>
-               </button>`
-            : `<button class="btn btn-sm btn-outline-danger btn-eliminar-usuario" onclick='eliminarUsuario(${usuario.id}, false)' title="Eliminar">
-                    <i class="bi bi-trash-fill"></i>
-               </button>`;
+        const acciones = document.createElement("div");
+        acciones.className = "usuario-card-actions";
+        agregarAccionesUsuario(acciones, usuario, true);
 
-        const card = `
-            <article class="usuario-card" data-id="${usuario.id}">
-                <div class="usuario-card-header">
-                    <div class="usuario-card-title-wrap">
-                        <span class="usuario-card-id">#${usuario.id}</span>
-                        <h6 class="usuario-card-title mb-1">
-                            ${usuario.nombre}
-                            ${protegido ? `<span class="badge text-bg-warning ms-2">Protegido</span>` : ""}
-                        </h6>
-                        <div class="usuario-card-email">${usuario.email}</div>
-                    </div>
-                </div>
-
-                <div class="usuario-card-body">
-                    <div class="usuario-card-row">
-                        <span class="usuario-card-label">Roles</span>
-                        <div class="usuario-card-value">${rolesHtml}</div>
-                    </div>
-                </div>
-
-                <div class="usuario-card-actions">
-                    ${btnEditar}
-                    ${btnEliminar}
-                </div>
-            </article>
-        `;
-
-        cardsContainer.innerHTML += card;
+        card.append(header, body, acciones);
+        cardsContainer.appendChild(card);
     });
 }
-// Convierte array de roles en badges bonitos
-function formatearRoles(roles) {
-    if (!roles || roles.length === 0) return "-";
-    return roles.map(r => `<span class='badge text-bg-primary me-1'>${r}</span>`).join("");
+
+function textoSeguroUsuario(valor, fallback = "") {
+    return valor === null || valor === undefined ? fallback : String(valor);
+}
+
+function crearCeldaUsuario(valor = null) {
+    const celda = document.createElement("td");
+    if (valor !== null) celda.textContent = textoSeguroUsuario(valor);
+    return celda;
+}
+
+function crearBadgeUsuario(clases, texto) {
+    const badge = document.createElement("span");
+    badge.className = clases;
+    badge.textContent = texto;
+    return badge;
+}
+
+function crearCeldaNombreUsuario(nombre, esDemoProtegido) {
+    const celda = crearCeldaUsuario(nombre);
+    if (esDemoProtegido) celda.appendChild(crearBadgeUsuario("badge text-bg-warning ms-2", "Protegido"));
+    return celda;
+}
+
+function agregarRolesUsuario(contenedor, roles, clasesBadge, clasesVacio, textoVacio) {
+    const rolesSeguros = Array.isArray(roles) ? roles : [];
+    if (rolesSeguros.length === 0) {
+        if (clasesVacio) contenedor.appendChild(crearBadgeUsuario(clasesVacio, textoVacio));
+        else contenedor.textContent = textoVacio;
+        return;
+    }
+
+    rolesSeguros.forEach(rol => contenedor.appendChild(crearBadgeUsuario(clasesBadge, textoSeguroUsuario(rol))));
+}
+
+function crearCeldaRolesTabla(roles) {
+    const celda = crearCeldaUsuario();
+    agregarRolesUsuario(celda, roles, "badge text-bg-primary me-1", "", "-");
+    return celda;
+}
+
+function crearBotonUsuario(clases, titulo, icono, deshabilitado, esCard) {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = clases;
+    boton.disabled = deshabilitado;
+    if (titulo) boton.title = titulo;
+
+    if (esCard) {
+        const iconoElemento = document.createElement("i");
+        iconoElemento.className = `bi ${icono}`;
+        boton.appendChild(iconoElemento);
+    } else {
+        boton.textContent = icono;
+    }
+
+    return boton;
+}
+
+function agregarAccionesUsuario(contenedor, usuario, esCard) {
+    const protegido = !!usuario.esDemoProtegido;
+    const editar = crearBotonUsuario(
+        esCard
+            ? (protegido ? "btn btn-sm btn-outline-secondary" : "btn btn-sm btn-outline-light btn-editar-usuario")
+            : (protegido ? "btn btn-sm btn-outline-secondary me-1" : "btn btn-sm btn-outline-light me-1"),
+        protegido ? "Usuario demo protegido" : (esCard ? "Editar" : ""),
+        esCard ? "bi-pencil-fill" : "✏️",
+        protegido,
+        esCard
+    );
+    const eliminar = crearBotonUsuario(
+        protegido ? "btn btn-sm btn-outline-secondary" : "btn btn-sm btn-outline-danger btn-eliminar-usuario",
+        protegido ? "Usuario demo protegido" : (esCard ? "Eliminar" : ""),
+        esCard ? "bi-trash-fill" : "🗑️",
+        protegido,
+        esCard
+    );
+
+    if (!protegido) {
+        editar.addEventListener("click", () => abrirModalUsuario(usuario));
+        eliminar.addEventListener("click", () => eliminarUsuario(usuario.id, false));
+    }
+
+    contenedor.append(editar, eliminar);
 }
 function inicializarTogglePasswordUsuario() {
     const passwordInput = document.getElementById("password");
