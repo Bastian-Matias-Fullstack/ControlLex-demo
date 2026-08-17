@@ -24,7 +24,7 @@ namespace Aplicacion.Usuarios.Handlers
             if (usuario == null)
                 throw new NotFoundException("Usuario no encontrado");
             if (usuario.EsDemoProtegido)
-                throw new InvalidOperationException("Este usuario forma parte del entorno de demostración y no puede modificarse.");
+                throw new BusinessConflictException("Este usuario forma parte del entorno de demostración y no puede modificarse.");
 
             // 2️⃣ Validar email duplicado (ANTES de guardar)
             var emailExiste = await _repositorio.ExisteEmailAsync(

@@ -1,4 +1,5 @@
 using API.Middlewares;
+using API.Helpers;
 using Aplicacion.Casos;
 using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
@@ -12,6 +13,7 @@ using Infraestructura.Repositorios;
 using Infraestructura.Servicios;
 using MediatR;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
@@ -87,13 +89,9 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
                 ).ToList()
             })
             .ToList();
-        var problemDetails = new ProblemDetails
-        {
-            Title = "Solicitud inválida",
-            Status = StatusCodes.Status400BadRequest,
-            Detail = "Uno o más parámetros no cumplen el formato esperado.",
-            Instance = context.HttpContext.Request.Path
-        };
+        var problemDetails = ApiError.BadRequest(
+            "Uno o más parámetros no cumplen el formato esperado.",
+            context.HttpContext);
         problemDetails.Extensions["errors"] = errors;
         return new BadRequestObjectResult(problemDetails);
     };
@@ -181,6 +179,24 @@ if (string.IsNullOrWhiteSpace(jwtKey))
             RoleClaimType = ClaimTypes.Role,
             ClockSkew = TimeSpan.Zero
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                await ApiError.WriteAsync(
+                    context.HttpContext,
+                    ApiError.Unauthorized("Se requiere autenticación válida.", context.HttpContext),
+                    context.HttpContext.RequestAborted);
+            },
+            OnForbidden = async context =>
+            {
+                await ApiError.WriteAsync(
+                    context.HttpContext,
+                    ApiError.Forbidden("No tienes permisos para acceder a este recurso.", context.HttpContext),
+                    context.HttpContext.RequestAborted);
+            }
+        };
     });
 builder.Services.AddAuthorization(options =>
 {
@@ -213,9 +229,11 @@ builder.Services.AddRateLimiter(options =>
             context.HttpContext.Response.Headers.RetryAfter =
                 ((int)retryAfter.TotalSeconds).ToString();
         }
-        context.HttpContext.Response.ContentType = "application/json";
-        await context.HttpContext.Response.WriteAsync(
-            "{\"message\":\"Demasiadas solicitudes. Intenta nuevamente en unos segundos.\"}",
+        await ApiError.WriteAsync(
+            context.HttpContext,
+            ApiError.TooManyRequests(
+                "Demasiadas solicitudes. Intenta nuevamente en unos segundos.",
+                context.HttpContext),
             token);
     };
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
@@ -367,22 +385,20 @@ if (swaggerEnabled)
             var authResult = await context.AuthenticateAsync("Bearer");
             if (!authResult.Succeeded || authResult.Principal is null)
             {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    message = "No autenticado."
-                });
+                await ApiError.WriteAsync(
+                    context,
+                    ApiError.Unauthorized("No autenticado.", context),
+                    context.RequestAborted);
                 return;
             }
             context.User = authResult.Principal;
             var isAdmin = context.User.IsInRole("Admin"); // ajusta si tu rol se llama distinto
             if (!isAdmin)
             {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    message = "Acceso denegado."
-                });
+                await ApiError.WriteAsync(
+                    context,
+                    ApiError.Forbidden("Acceso denegado.", context),
+                    context.RequestAborted);
                 return;
             }
             await next();
@@ -477,3 +493,5 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     ResponseWriter = WriteHealthResponse
 });
 app.Run();
+
+public partial class Program { }

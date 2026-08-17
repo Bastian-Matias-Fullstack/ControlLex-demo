@@ -1,4 +1,5 @@
 ﻿using Aplicacion.Casos;
+using API.Helpers;
 using Aplicacion.DTO;
 using Aplicacion.DTOs;
 using Aplicacion.Excepciones;
@@ -105,13 +106,9 @@ namespace API.Controllers
 
             if (caso == null)
             {
-                return NotFound(new ProblemDetails
-                {
-                    Status = 404,
-                    Title = "Caso no encontrado",
-                    Detail = $"No se encontró un caso con ID {id}.",
-                    Instance = HttpContext.Request.Path
-                });
+                return NotFound(ApiError.NotFound(
+                    $"No se encontró un caso con ID {id}.",
+                    HttpContext));
             }
 
             var dto = new CasoDto

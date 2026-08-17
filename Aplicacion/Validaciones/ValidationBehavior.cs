@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using Aplicacion.Excepciones;
 using MediatR;
 namespace Aplicacion.Validaciones
 {
@@ -31,7 +32,7 @@ namespace Aplicacion.Validaciones
                 if (failures.Count != 0)
                 {
                     var errors = string.Join(" | ", failures.Select(f => f.ErrorMessage));
-                    throw new ArgumentException(errors);
+                    throw new InvalidRequestException(errors);
                 }
             }
             return await next();

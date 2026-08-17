@@ -169,7 +169,7 @@ public class ActualizarCasoServiceTests
         Func<Task> act = async () => await _service.EjecutarAsync(1, request, esAdmin: false);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<InvalidRequestException>();
 
         _casoRepoMock.Verify(r => r.ActualizarAsync(It.IsAny<Caso>()), Times.Never);
     }
@@ -193,7 +193,7 @@ public class ActualizarCasoServiceTests
         Func<Task> act = async () => await _service.EjecutarAsync(1, request, esAdmin: false);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<InvalidRequestException>();
 
         _casoRepoMock.Verify(r => r.ActualizarAsync(It.IsAny<Caso>()), Times.Never);
     }

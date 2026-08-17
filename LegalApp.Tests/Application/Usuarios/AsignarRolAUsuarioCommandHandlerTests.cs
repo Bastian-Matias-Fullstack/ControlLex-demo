@@ -85,7 +85,7 @@ namespace Tests.Application.Usuarios
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() =>
+            await Assert.ThrowsAsync<NotFoundException>(() =>
                 _handler.Handle(command, CancellationToken.None)
 
             );
@@ -187,7 +187,7 @@ namespace Tests.Application.Usuarios
                 NombreRol = "Admin"
             };
 
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<BusinessConflictException>(() =>
                 _handler.Handle(command, CancellationToken.None)
             );
 

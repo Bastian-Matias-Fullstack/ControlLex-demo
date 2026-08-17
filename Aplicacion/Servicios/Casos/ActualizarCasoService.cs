@@ -25,7 +25,7 @@ namespace Aplicacion.Servicios.Casos
             if (caso is null)
                 throw new NotFoundException($"No existe un caso con id {id}.");
             if (request.ClienteId <= 0)
-                throw new ArgumentException("Debe seleccionar un cliente válido.");
+                throw new InvalidRequestException("Debe seleccionar un cliente válido.");
 
             request.Titulo = request.Titulo?.Trim() ?? string.Empty;
             request.Descripcion = request.Descripcion?.Trim() ?? string.Empty;
@@ -70,7 +70,7 @@ namespace Aplicacion.Servicios.Casos
 
             }
             if (string.IsNullOrWhiteSpace(request.Titulo))
-                throw new ArgumentException("El título del caso es obligatorio.");
+                throw new InvalidRequestException("El título del caso es obligatorio.");
             // Campos editables
             caso.Titulo = request.Titulo;
             caso.Descripcion = request.Descripcion;

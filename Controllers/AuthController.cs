@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using API.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Aplicacion.Servicios.Auth;
 using Aplicacion.DTO;
@@ -38,11 +39,11 @@ public class AuthController : ControllerBase
             _logger.LogWarning(
                 "LOGIN_LOCKED email={Email} ip={IP} userAgent={UserAgent} lockedUntilUtc={LockedUntilUtc}",
                 email, ip, userAgent, lockedUntil);
-            return StatusCode(StatusCodes.Status429TooManyRequests, new
-            {
-                message = "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
-                lockedUntilUtc = lockedUntil
-            });
+            var problem = ApiError.TooManyRequests(
+                "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
+                HttpContext);
+            problem.Extensions["lockedUntilUtc"] = lockedUntil;
+            return StatusCode(StatusCodes.Status429TooManyRequests, problem);
         }
         /* aqui usamos EF CORE YA QUE ES CONSULTA SIMPLE */
         var usuario = await _context.Usuarios
@@ -58,13 +59,13 @@ public class AuthController : ControllerBase
 
             if (lockedAfterFailure is not null)
             {
-                return StatusCode(StatusCodes.Status429TooManyRequests, new
-                {
-                    message = "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
-                    lockedUntilUtc = lockedAfterFailure
-                });
+                var problem = ApiError.TooManyRequests(
+                    "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
+                    HttpContext);
+                problem.Extensions["lockedUntilUtc"] = lockedAfterFailure;
+                return StatusCode(StatusCodes.Status429TooManyRequests, problem);
             }
-            return Unauthorized(credencialesInvalidas);
+            return Unauthorized(ApiError.Unauthorized(credencialesInvalidas, HttpContext));
         }
         // Verificar contraseña con IHashService
         var esValida = _hashService.Verificar(dto.Password, usuario.PasswordHash);
@@ -78,13 +79,13 @@ public class AuthController : ControllerBase
 
             if (lockedAfterFailure is not null)
             {
-                return StatusCode(StatusCodes.Status429TooManyRequests, new
-                {
-                    message = "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
-                    lockedUntilUtc = lockedAfterFailure
-                });
+                var problem = ApiError.TooManyRequests(
+                    "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
+                    HttpContext);
+                problem.Extensions["lockedUntilUtc"] = lockedAfterFailure;
+                return StatusCode(StatusCodes.Status429TooManyRequests, problem);
             }
-            return Unauthorized(credencialesInvalidas);
+            return Unauthorized(ApiError.Unauthorized(credencialesInvalidas, HttpContext));
 
         }
         _lockoutService.Reset(email);

@@ -1,5 +1,6 @@
 ﻿using Aplicacion.DTO;
 using Aplicacion.DTOs;
+using Aplicacion.Excepciones;
 using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
 using Dominio.Entidades;
@@ -38,13 +39,13 @@ namespace Aplicacion.Casos
                 request.Descripcion = request.Descripcion?.Trim() ?? string.Empty;
                 // 1. Validaciones
                 if (string.IsNullOrWhiteSpace(request.Titulo))
-                    throw new ArgumentException("El título del caso es obligatorio.");
+                    throw new InvalidRequestException("El título del caso es obligatorio.");
                 if (request.ClienteId <= 0)
-                    throw new ArgumentException("Debe seleccionar un cliente válido.");
+                    throw new InvalidRequestException("Debe seleccionar un cliente válido.");
                 _logger.LogInformation("🟢 Creando caso para ClienteId: {ClienteId}", request.ClienteId);               
                 var cliente = await _clienteRepository.ObtenerPorIdAsync(request.ClienteId);
                 if (cliente is null)
-                    throw new InvalidOperationException("El cliente no existe.");
+                    throw new NotFoundException("El cliente no existe.");
 
                 //6. Crear caso
                 var nuevoCaso = new Caso

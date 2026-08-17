@@ -1,4 +1,5 @@
 ﻿using Aplicacion.Repositorio;
+using Aplicacion.Excepciones;
 using Aplicacion.Usuarios.Commands;
 using MediatR;
 
@@ -17,24 +18,24 @@ namespace Aplicacion.Usuarios.Handlers
         {
             if (request.UsuarioId == 1 && request.NombreRol.Trim().ToLower() == "admin")
             {
-                throw new InvalidOperationException("No se puede quitar el rol Admin del usuario principal.");
+                throw new BusinessConflictException("No se puede quitar el rol Admin del usuario principal.");
             }
             var rol = await _rolRepositorio.ObtenerPorNombreAsync(request.NombreRol.Trim());
             if (rol == null)
             {
-                throw new KeyNotFoundException("Rol no encontrado.");
+                throw new NotFoundException("Rol no encontrado.");
             }
             var usuario = await _usuarioRepositorio.ObtenerPorIdAsync(request.UsuarioId);
             if (usuario == null)
             {
-                throw new KeyNotFoundException("Usuario no encontrado.");
+                throw new NotFoundException("Usuario no encontrado.");
             }
             if (usuario.EsDemoProtegido)
-                throw new InvalidOperationException("Este usuario forma parte del entorno de demostración y no puede modificar sus roles.");
+                throw new BusinessConflictException("Este usuario forma parte del entorno de demostración y no puede modificar sus roles.");
             var usuarioRol = usuario.UsuarioRoles.FirstOrDefault(ur => ur.RolId == rol.Id);
             if (usuarioRol == null)
             {
-                throw new InvalidOperationException("El usuario no tiene ese rol asignado.");
+                throw new BusinessConflictException("El usuario no tiene ese rol asignado.");
             }
             usuario.UsuarioRoles.Remove(usuarioRol);
             await _usuarioRepositorio.GuardarCambiosAsync();

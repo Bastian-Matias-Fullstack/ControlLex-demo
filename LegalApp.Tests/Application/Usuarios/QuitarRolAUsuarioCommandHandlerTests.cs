@@ -1,5 +1,6 @@
 ﻿using Xunit;
 using Moq;
+using Aplicacion.Excepciones;
 using Aplicacion.Usuarios.Handlers;
 using Aplicacion.Usuarios.Commands;
 using Aplicacion.Repositorio;
@@ -29,7 +30,7 @@ namespace Tests.Application.Usuarios
         {
             var command = new QuitarRolAUsuarioCommand(1, "Admin");
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            await Assert.ThrowsAsync<BusinessConflictException>(() =>
                 _handler.Handle(command, CancellationToken.None)
             );
         }
@@ -43,7 +44,7 @@ namespace Tests.Application.Usuarios
 
             var command = new QuitarRolAUsuarioCommand(2, "Admin");
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            await Assert.ThrowsAsync<NotFoundException>(() =>
                 _handler.Handle(command, CancellationToken.None)
             );
             _usuarioRepositorioMock.Verify(r => r.GuardarCambiosAsync(), Times.Never);
@@ -67,7 +68,7 @@ namespace Tests.Application.Usuarios
 
             var command = new QuitarRolAUsuarioCommand(99, "Admin");
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            await Assert.ThrowsAsync<NotFoundException>(() =>
                 _handler.Handle(command, CancellationToken.None)
             );
             _usuarioRepositorioMock.Verify(r => r.GuardarCambiosAsync(), Times.Never);
@@ -95,7 +96,7 @@ namespace Tests.Application.Usuarios
 
             var command = new QuitarRolAUsuarioCommand(usuario.Id, "Admin");
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            await Assert.ThrowsAsync<BusinessConflictException>(() =>
                 _handler.Handle(command, CancellationToken.None)
             );
             _usuarioRepositorioMock.Verify(r => r.GuardarCambiosAsync(), Times.Never);
@@ -159,7 +160,7 @@ namespace Tests.Application.Usuarios
 
             var command = new QuitarRolAUsuarioCommand(usuario.Id, "Abogado");
 
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<BusinessConflictException>(() =>
                 _handler.Handle(command, CancellationToken.None)
             );
 

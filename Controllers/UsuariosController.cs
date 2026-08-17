@@ -1,4 +1,5 @@
 ﻿using Aplicacion.Usuarios.Commands;
+using API.Helpers;
 using Aplicacion.Usuarios.Queries;
 using Infraestructura.Persistencia;
 using MediatR;
@@ -60,10 +61,10 @@ namespace API.Controllers
 
             // Contrato (si quieres mantenerlo aquí además de ModelState)
             if (string.IsNullOrWhiteSpace(nombre))
-                return BadRequest(new ProblemDetails { Title = "Datos inválidos", Detail = "El nombre es obligatorio.", Status = 400, Instance = HttpContext.Request.Path });
+                return BadRequest(ApiError.BadRequest("El nombre es obligatorio.", HttpContext));
 
             if (string.IsNullOrWhiteSpace(email))
-                return BadRequest(new ProblemDetails { Title = "Datos inválidos", Detail = "El email es obligatorio.", Status = 400, Instance = HttpContext.Request.Path });
+                return BadRequest(ApiError.BadRequest("El email es obligatorio.", HttpContext));
 
             await _mediator.Send(new ActualizarUsuarioCommand(id, nombre, email, pass));
             return NoContent();

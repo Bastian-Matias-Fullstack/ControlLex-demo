@@ -1,5 +1,6 @@
 ﻿using Aplicacion.Casos;
 using Aplicacion.DTO;
+using Aplicacion.Excepciones;
 using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
 using Dominio.Entidades;
@@ -72,7 +73,7 @@ public class CrearCasoServiceTests
         Func<Task> act = async () => await _service.EjecutarAsync(request);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<InvalidRequestException>();
 
         _clienteRepoMock.Verify(r => r.ObtenerPorIdAsync(It.IsAny<int>()), Times.Never);
         _casoRepoMock.Verify(r => r.CrearAsync(It.IsAny<Caso>()), Times.Never);
@@ -95,7 +96,7 @@ public class CrearCasoServiceTests
         Func<Task> act = async () => await _service.EjecutarAsync(request);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<InvalidRequestException>();
 
         _clienteRepoMock.Verify(r => r.ObtenerPorIdAsync(It.IsAny<int>()), Times.Never);
         _casoRepoMock.Verify(r => r.CrearAsync(It.IsAny<Caso>()), Times.Never);
@@ -120,7 +121,7 @@ public class CrearCasoServiceTests
         Func<Task> act = async () => await _service.EjecutarAsync(request);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        await act.Should().ThrowAsync<NotFoundException>();
 
         _casoRepoMock.Verify(r => r.CrearAsync(It.IsAny<Caso>()), Times.Never);
     }
