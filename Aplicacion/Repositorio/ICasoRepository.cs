@@ -1,5 +1,6 @@
 ﻿using Aplicacion.DTO;
 using Dominio.Entidades;
+using Aplicacion.DTOs;
 
 namespace Aplicacion.Repositorio
 {
@@ -12,7 +13,7 @@ namespace Aplicacion.Repositorio
         Task<Caso?> ObtenerPorId(int id);
         Task EliminarAsync(Caso caso);
         Task<List<ConteoPorClienteDto>> ObtenerConteoCasosPorClienteAsync();
-        IQueryable<Caso> ObtenerQueryable();
+        Task<ResultadoPaginadoConResumen<CasoDto>> ObtenerPaginaAsync(FiltroCasosRequest filtro);
         Task<List<Caso>> ObtenerPorEstadoAsync(EstadoCaso estado);
         Task<bool> ExistenCasosCreadosPorUsuarioAsync(string email);
         Task<bool> ExisteCasoActivoParaClienteAsync(int clienteId, int casoId);
