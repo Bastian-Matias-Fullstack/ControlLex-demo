@@ -110,12 +110,30 @@ namespace Infraestructura.Repositorios
                     c.Cliente.Nombre.Contains(filtro.Buscar));
             }
 
+            if (filtro.Desde.HasValue)
+            {
+                query = query.Where(c => c.FechaCreacion >= filtro.Desde.Value);
+            }
+
+            if (filtro.Hasta.HasValue)
+            {
+                query = query.Where(c => c.FechaCreacion <= filtro.Hasta.Value);
+            }
+
             query = filtro.Orden switch
             {
-                "fecha_desc" => query.OrderByDescending(c => c.FechaCreacion),
-                "fecha_asc" => query.OrderBy(c => c.FechaCreacion),
-                "titulo_asc" => query.OrderBy(c => c.Titulo),
-                "titulo_desc" => query.OrderByDescending(c => c.Titulo),
+                "fecha_desc" => query
+                    .OrderByDescending(c => c.FechaCreacion)
+                    .ThenByDescending(c => c.Id),
+                "fecha_asc" => query
+                    .OrderBy(c => c.FechaCreacion)
+                    .ThenBy(c => c.Id),
+                "titulo_asc" => query
+                    .OrderBy(c => c.Titulo)
+                    .ThenBy(c => c.Id),
+                "titulo_desc" => query
+                    .OrderByDescending(c => c.Titulo)
+                    .ThenByDescending(c => c.Id),
                 _ => query.OrderByDescending(c => c.Id)
             };
 

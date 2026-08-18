@@ -12,8 +12,8 @@ namespace Aplicacion.DTOs
 
         public string? Orden { get; set; }
 
-        public DateTime? Desde { get; set; }
+        public DateTimeOffset? Desde { get; set; }
 
-        public DateTime? Hasta { get; set; }
+        public DateTimeOffset? Hasta { get; set; }
     }
 }

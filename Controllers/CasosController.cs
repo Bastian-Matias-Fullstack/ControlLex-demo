@@ -55,28 +55,10 @@ namespace API.Controllers
         [Authorize]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ObtenerCasos([FromQuery] FiltroCasosRequest filtro)
         {
-            if (filtro.Pagina < 1)
-                filtro.Pagina = 1;
-
-            if (filtro.Tamanio < 1)
-                filtro.Tamanio = 10;
-
-            // Normalización suave de strings
-            filtro.Buscar = string.IsNullOrWhiteSpace(filtro.Buscar)
-                ? null
-                : filtro.Buscar.Trim();
-
-            filtro.Estado = string.IsNullOrWhiteSpace(filtro.Estado)
-                ? null
-                : filtro.Estado.Trim();
-
-            filtro.Orden = string.IsNullOrWhiteSpace(filtro.Orden)
-                ? null
-                : filtro.Orden.Trim();
-
             var resultado = await _listarCasosService.EjecutarAsync(filtro);
 
             if (resultado == null || resultado.Items == null || !resultado.Items.Any())

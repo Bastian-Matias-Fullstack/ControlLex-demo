@@ -98,6 +98,24 @@ public sealed class HttpContractTests
             problem.GetProperty("detail").GetString());
     }
 
+    [Theory]
+    [InlineData("pagina=0")]
+    [InlineData("tamanio=0")]
+    [InlineData("tamanio=101")]
+    [InlineData("estado=Archivado")]
+    [InlineData("estado=0")]
+    [InlineData("orden=fecha")]
+    [InlineData("desde=2026-08-19T00%3A00%3A00Z&hasta=2026-08-18T00%3A00%3A00Z")]
+    public async Task Invalid_case_query_returns_400_problem_details(string query)
+    {
+        using var factory = new ControlLexApiFactory();
+        using var client = CreateClient(factory, "Admin");
+
+        var response = await client.GetAsync($"/api/Casos?{query}");
+
+        await AssertProblemAsync(response, HttpStatusCode.BadRequest);
+    }
+
     [Fact]
     public async Task Unexpected_exception_returns_safe_500_problem_details()
     {

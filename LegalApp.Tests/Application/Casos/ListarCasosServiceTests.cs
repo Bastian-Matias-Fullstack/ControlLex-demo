@@ -1,4 +1,5 @@
 ﻿using Aplicacion.DTOs;
+using Aplicacion.Excepciones;
 using Aplicacion.Repositorio;
 using Aplicacion.Servicios.Casos;
 using Dominio.Entidades;
@@ -176,4 +177,150 @@ public class ListarCasosServiceTests
         Assert.Equal(new[] { "Alfa", "Beta", "Zeta" }, resultado.Items.Select(i => i.Titulo).ToArray());
     }
 
+    [Fact]
+    public async Task EjecutarAsync_SoloDesde_FiltraInclusivamente()
+    {
+        using var context = CrearContexto();
+        SeedCasosConFechas(context);
+        var service = CrearServicio(context);
+
+        var resultado = await service.EjecutarAsync(new FiltroCasosRequest
+        {
+            Desde = new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero)
+        });
+
+        Assert.Equal(
+            ["Caso nuevo", "Caso intermedio"],
+            resultado.Items.Select(item => item.Titulo).ToArray());
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_SoloHasta_FiltraInclusivamente()
+    {
+        using var context = CrearContexto();
+        SeedCasosConFechas(context);
+        var service = CrearServicio(context);
+
+        var resultado = await service.EjecutarAsync(new FiltroCasosRequest
+        {
+            Hasta = new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero)
+        });
+
+        Assert.Equal(
+            ["Caso intermedio", "Caso antiguo"],
+            resultado.Items.Select(item => item.Titulo).ToArray());
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_DesdeYHasta_FiltraRangoInclusivo()
+    {
+        using var context = CrearContexto();
+        SeedCasosConFechas(context);
+        var service = CrearServicio(context);
+
+        var resultado = await service.EjecutarAsync(new FiltroCasosRequest
+        {
+            Desde = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            Hasta = new DateTimeOffset(2026, 1, 25, 0, 0, 0, TimeSpan.Zero)
+        });
+
+        Assert.Equal("Caso intermedio", Assert.Single(resultado.Items).Titulo);
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_DesdePosteriorAHasta_LanzaInvalidRequest()
+    {
+        using var context = CrearContexto();
+        var service = CrearServicio(context);
+        var filtro = new FiltroCasosRequest
+        {
+            Desde = new DateTimeOffset(2026, 1, 21, 0, 0, 0, TimeSpan.Zero),
+            Hasta = new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero)
+        };
+
+        var action = () => service.EjecutarAsync(filtro);
+
+        await Assert.ThrowsAsync<InvalidRequestException>(action);
+    }
+
+    [Theory]
+    [InlineData(0, 10)]
+    [InlineData(1, 0)]
+    [InlineData(1, 101)]
+    public async Task EjecutarAsync_PaginacionFueraDeRango_LanzaInvalidRequest(
+        int pagina,
+        int tamanio)
+    {
+        using var context = CrearContexto();
+        var service = CrearServicio(context);
+
+        var action = () => service.EjecutarAsync(new FiltroCasosRequest
+        {
+            Pagina = pagina,
+            Tamanio = tamanio
+        });
+
+        await Assert.ThrowsAsync<InvalidRequestException>(action);
+    }
+
+    [Theory]
+    [InlineData("0", null)]
+    [InlineData("Archivado", null)]
+    [InlineData(null, "fecha")]
+    [InlineData(null, "titulo asc")]
+    public async Task EjecutarAsync_EstadoUOrdenInvalido_LanzaInvalidRequest(
+        string? estado,
+        string? orden)
+    {
+        using var context = CrearContexto();
+        var service = CrearServicio(context);
+
+        var action = () => service.EjecutarAsync(new FiltroCasosRequest
+        {
+            Estado = estado,
+            Orden = orden
+        });
+
+        await Assert.ThrowsAsync<InvalidRequestException>(action);
+    }
+
+    private static ListarCasosService CrearServicio(AppDbContext context)
+    {
+        return new ListarCasosService(new CasoRepository(context));
+    }
+
+    private static void SeedCasosConFechas(AppDbContext context)
+    {
+        var cliente = new Cliente("6-6", "Cliente Fechas");
+        context.Clientes.Add(cliente);
+        context.Casos.AddRange(
+            CrearCasoConFecha(
+                "Caso antiguo",
+                new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero),
+                cliente),
+            CrearCasoConFecha(
+                "Caso intermedio",
+                new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero),
+                cliente),
+            CrearCasoConFecha(
+                "Caso nuevo",
+                new DateTimeOffset(2026, 1, 30, 0, 0, 0, TimeSpan.Zero),
+                cliente));
+        context.SaveChanges();
+    }
+
+    private static Caso CrearCasoConFecha(
+        string titulo,
+        DateTimeOffset fecha,
+        Cliente cliente)
+    {
+        return new Caso
+        {
+            Titulo = titulo,
+            Estado = EstadoCaso.Cerrado,
+            Cliente = cliente,
+            TipoCaso = TipoCaso.Civil,
+            FechaCreacion = fecha
+        };
+    }
 }
