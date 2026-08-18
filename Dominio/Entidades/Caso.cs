@@ -31,5 +31,22 @@ namespace Dominio.Entidades
         public bool PuedeSerCerrado() => Estado == EstadoCaso.EnProceso;
         public bool EstaActivo() => Estado != EstadoCaso.Cerrado;
         public bool EstaCerrado() => Estado == EstadoCaso.Cerrado;
+
+        public void Cerrar(DateTime fechaCierre, string? motivoCierre)
+        {
+            if (EstaCerrado())
+            {
+                throw new InvalidOperationException("El caso ya está cerrado.");
+            }
+
+            Estado = EstadoCaso.Cerrado;
+            FechaCierre = fechaCierre;
+            FechaCambioEstado = fechaCierre;
+
+            if (!string.IsNullOrWhiteSpace(motivoCierre))
+            {
+                MotivoCierre = motivoCierre;
+            }
+        }
     }
 }

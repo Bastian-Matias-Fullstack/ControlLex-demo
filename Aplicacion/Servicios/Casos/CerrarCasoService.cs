@@ -27,7 +27,9 @@ namespace Aplicacion.Servicios.Casos
             request.MotivoCierre = (request.MotivoCierre ?? string.Empty).Trim();
 
             // Auditoría
-            var userName = usuarioActual ?? "Sistema";
+            var actor = string.IsNullOrWhiteSpace(usuarioActual)
+                ? "Sistema"
+                : usuarioActual.Trim();
 
             // Obtener caso
             var caso = await _casoRepository.ObtenerPorIdAsync(casoId);
@@ -46,11 +48,6 @@ namespace Aplicacion.Servicios.Casos
                         "No se puede cerrar un caso sin descripción."
                     );
 
-                caso.Estado = EstadoCaso.Cerrado;
-                caso.FechaCierre = DateTime.UtcNow;
-
-                if (!string.IsNullOrWhiteSpace(request.MotivoCierre))
-                    caso.MotivoCierre = request.MotivoCierre;
             }
             else if (caso.Estado == EstadoCaso.Pendiente)
             {
@@ -58,10 +55,6 @@ namespace Aplicacion.Servicios.Casos
                     throw new InvalidEstadoCasoException(
                         "Debe ingresar un motivo para cerrar un caso pendiente."
                     );
-
-                caso.Estado = EstadoCaso.Cerrado;
-                caso.FechaCierre = DateTime.UtcNow;
-                caso.MotivoCierre = request.MotivoCierre;
             }
             else
             {
@@ -70,9 +63,10 @@ namespace Aplicacion.Servicios.Casos
                 );
             }
             // Auditoría y persistencia
-            caso.UpdatedAt = DateTime.UtcNow;
-            caso.ModifiedBy = userName;
-            caso.FechaCambioEstado = DateTime.UtcNow;
+            var fechaCierre = DateTime.UtcNow;
+            caso.Cerrar(fechaCierre, request.MotivoCierre);
+            caso.UpdatedAt = fechaCierre;
+            caso.ModifiedBy = actor;
 
             await _casoRepository.ActualizarAsync(caso);
         }

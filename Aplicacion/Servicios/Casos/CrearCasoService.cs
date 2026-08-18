@@ -27,8 +27,14 @@ namespace Aplicacion.Casos
             _formateador = formateador;
             _clienteRepository = clienteRepository; 
         }
-        public async Task<CasoDto> EjecutarAsync(CrearCasoRequest request)
+        public async Task<CasoDto> EjecutarAsync(
+            CrearCasoRequest request,
+            string? usuarioActual = null)
         {
+                var actor = string.IsNullOrWhiteSpace(usuarioActual)
+                    ? "Sistema"
+                    : usuarioActual.Trim();
+
                 // 🔹 0. Normalizar input (AQUÍ VA EL CAMBIO)
                 request.Titulo = request.Titulo?.Trim() ?? string.Empty;
                 request.Descripcion = request.Descripcion?.Trim() ?? string.Empty;
@@ -52,6 +58,7 @@ namespace Aplicacion.Casos
                     NombreCliente = cliente.Nombre,
                     FechaCreacion = DateTimeOffset.UtcNow,
                     Estado = EstadoCaso.Pendiente,
+                    CreatedBy = actor
                 };
                 await _casoRepository.CrearAsync(nuevoCaso);
                 // 6. Retornar DTO

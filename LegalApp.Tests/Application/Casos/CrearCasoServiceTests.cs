@@ -196,6 +196,45 @@ public class CrearCasoServiceTests
         casoCapturado.Cliente.Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task EjecutarAsync_CasoValido_RegistraCreatedByDesdeActorServidor()
+    {
+        var cliente = new Cliente { Id = 1, Nombre = "Cliente" };
+        var request = new CrearCasoRequest
+        {
+            Titulo = "Caso válido",
+            Descripcion = "Descripción",
+            ClienteId = 1,
+            TipoCaso = TipoCaso.Civil
+        };
+        Caso? casoCapturado = null;
+
+        _clienteRepoMock
+            .Setup(r => r.ObtenerPorIdAsync(cliente.Id))
+            .ReturnsAsync(cliente);
+        _casoRepoMock
+            .Setup(r => r.CrearAsync(It.IsAny<Caso>()))
+            .Callback<Caso>(caso => casoCapturado = caso)
+            .Returns(Task.CompletedTask);
+
+        await _service.EjecutarAsync(request, " creador@legal.cl ");
+
+        casoCapturado.Should().NotBeNull();
+        casoCapturado!.CreatedBy.Should().Be("creador@legal.cl");
+        casoCapturado.ModifiedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void CrearCasoRequest_NoExponeCamposDeAuditoria()
+    {
+        var propiedades = typeof(CrearCasoRequest)
+            .GetProperties()
+            .Select(propiedad => propiedad.Name);
+
+        propiedades.Should().NotContain("CreatedBy");
+        propiedades.Should().NotContain("ModifiedBy");
+    }
+
 
 
 

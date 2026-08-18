@@ -190,4 +190,24 @@ public class CerrarCasoServiceTests
             Times.Once
         );
     }
+
+    [Fact]
+    public async Task EjecutarAsync_CierreValido_PreservaCreatedByYRegistraModifiedBy()
+    {
+        var caso = new Caso
+        {
+            Estado = EstadoCaso.Pendiente,
+            CreatedBy = "creador@legal.cl"
+        };
+        var request = new CerrarCasoRequest { MotivoCierre = "Finalizado" };
+
+        _casoRepoMock
+            .Setup(r => r.ObtenerPorIdAsync(1))
+            .ReturnsAsync(caso);
+
+        await _service.EjecutarAsync(1, request, " cierre@legal.cl ");
+
+        caso.CreatedBy.Should().Be("creador@legal.cl");
+        caso.ModifiedBy.Should().Be("cierre@legal.cl");
+    }
 }

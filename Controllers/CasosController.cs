@@ -133,7 +133,9 @@ namespace API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CrearCaso([FromBody] CrearCasoRequest request)
         {
-            var nuevoCaso = await _crearCasoService.EjecutarAsync(request);
+            var nuevoCaso = await _crearCasoService.EjecutarAsync(
+                request,
+                User.Identity?.Name);
             return CreatedAtAction(nameof(ObtenerCasoPorId), new { id = nuevoCaso.Id }, nuevoCaso.Id);
         }
 
@@ -165,7 +167,11 @@ namespace API.Controllers
             [FromBody] ActualizarCasoRequest request)
         {
             var esAdmin = User.IsInRole("Admin");
-            await _actualizarCasoService.EjecutarAsync(id, request, esAdmin);
+            await _actualizarCasoService.EjecutarAsync(
+                id,
+                request,
+                esAdmin,
+                User.Identity?.Name);
             return NoContent();
         }
 

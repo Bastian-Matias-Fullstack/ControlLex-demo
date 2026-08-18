@@ -198,7 +198,7 @@ public class ActualizarCasoServiceTests
         _casoRepoMock.Verify(r => r.ActualizarAsync(It.IsAny<Caso>()), Times.Never);
     }
     [Fact]
-    public async Task EjecutarAsync_CasoCerrado_Admin_PermiteEditar()
+    public async Task EjecutarAsync_CasoCerrado_Admin_LanzaBusinessConflictSinMutar()
     {
         // Arrange
         var caso = new Caso
@@ -222,14 +222,18 @@ public class ActualizarCasoServiceTests
         _casoRepoMock.Setup(r => r.ObtenerPorIdAsync(1)).ReturnsAsync(caso);
 
         // Act
-        await _service.EjecutarAsync(1, request, esAdmin: true);
+        Func<Task> act = async () =>
+            await _service.EjecutarAsync(1, request, esAdmin: true);
 
         // Assert
-        caso.Titulo.Should().Be("Despues");
-        caso.Descripcion.Should().Be("Despues");
-        caso.TipoCaso.Should().Be(TipoCaso.Penal);
+        await act.Should().ThrowAsync<BusinessConflictException>();
+        caso.Titulo.Should().Be("Antes");
+        caso.Descripcion.Should().Be("Antes");
+        caso.TipoCaso.Should().Be(TipoCaso.Civil);
 
-        _casoRepoMock.Verify(r => r.ActualizarAsync(It.IsAny<Caso>()), Times.Once);
+        _casoRepoMock.Verify(
+            r => r.ActualizarAsync(It.IsAny<Caso>()),
+            Times.Never);
     }
     [Fact]
     public async Task EjecutarAsync_CambiaCliente_ClienteNoExiste_LanzaNotFoundException()
@@ -286,6 +290,39 @@ public class ActualizarCasoServiceTests
         await act.Should().ThrowAsync<BusinessConflictException>();
 
         _casoRepoMock.Verify(r => r.ActualizarAsync(It.IsAny<Caso>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_ActualizacionValida_PreservaCreatedByYRegistraModifiedBy()
+    {
+        var caso = new Caso
+        {
+            Id = 1,
+            Estado = EstadoCaso.Pendiente,
+            ClienteId = 1,
+            CreatedBy = "creador@legal.cl"
+        };
+        var request = new ActualizarCasoRequest
+        {
+            ClienteId = 1,
+            Titulo = "Título actualizado",
+            Descripcion = "Descripción actualizada",
+            TipoCaso = TipoCaso.Civil
+        };
+
+        _casoRepoMock.Setup(r => r.ObtenerPorIdAsync(1)).ReturnsAsync(caso);
+
+        await _service.EjecutarAsync(
+            1,
+            request,
+            esAdmin: true,
+            usuarioActual: " editor@legal.cl ");
+
+        caso.CreatedBy.Should().Be("creador@legal.cl");
+        caso.ModifiedBy.Should().Be("editor@legal.cl");
+        _casoRepoMock.Verify(
+            r => r.ActualizarAsync(It.IsAny<Caso>()),
+            Times.Once);
     }
 
 
