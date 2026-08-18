@@ -121,6 +121,33 @@ public class CrearCasoServiceTests
 
         _casoRepoMock.Verify(r => r.CrearAsync(It.IsAny<Caso>()), Times.Never);
     }
+
+    [Fact]
+    public async Task EjecutarAsync_ClienteConCasoActivo_LanzaBusinessConflictException()
+    {
+        var cliente = new Cliente { Id = 1, Nombre = "Cliente" };
+        var request = new CrearCasoRequest
+        {
+            Titulo = "Caso válido",
+            Descripcion = "Descripción",
+            ClienteId = cliente.Id,
+            TipoCaso = TipoCaso.Civil
+        };
+
+        _clienteRepoMock
+            .Setup(r => r.ObtenerPorIdAsync(cliente.Id))
+            .ReturnsAsync(cliente);
+        _casoRepoMock
+            .Setup(r => r.ExisteCasoActivoParaClienteAsync(cliente.Id, 0))
+            .ReturnsAsync(true);
+
+        Func<Task> act = async () => await _service.EjecutarAsync(request);
+
+        await act.Should().ThrowAsync<BusinessConflictException>();
+        _casoRepoMock.Verify(
+            r => r.CrearAsync(It.IsAny<Caso>()),
+            Times.Never);
+    }
     [Fact]
     public async Task EjecutarAsync_TituloYDescripcionConEspacios_SeNormalizanAntesDeCrear()
     {

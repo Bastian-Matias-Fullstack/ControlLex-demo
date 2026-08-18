@@ -47,6 +47,16 @@ namespace Aplicacion.Casos
                 if (cliente is null)
                     throw new NotFoundException("El cliente no existe.");
 
+                var clienteTieneCasoActivo =
+                    await _casoRepository.ExisteCasoActivoParaClienteAsync(
+                        cliente.Id,
+                        0);
+
+                if (clienteTieneCasoActivo)
+                    throw new BusinessConflictException(
+                        "El cliente ya tiene otro caso activo."
+                    );
+
                 //6. Crear caso
                 var nuevoCaso = new Caso
                 {

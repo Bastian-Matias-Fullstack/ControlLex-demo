@@ -4,6 +4,9 @@ using Infraestructura.Persistencia;
 using Aplicacion.Repositorio;
 using Aplicacion.DTO;
 using Aplicacion.DTOs;
+using Aplicacion.Excepciones;
+using Infraestructura.Persistencia.Configuraciones;
+using Microsoft.Data.SqlClient;
 
 namespace Infraestructura.Repositorios
 {
@@ -27,12 +30,32 @@ namespace Infraestructura.Repositorios
         public async Task CrearAsync(Caso nuevoCaso)
         {
             _context.Casos.Add(nuevoCaso);
-            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (EsConflictoDeCasoActivo(ex))
+            {
+                throw new BusinessConflictException(
+                    "El cliente ya tiene otro caso activo."
+                );
+            }
         }
         public async Task ActualizarAsync(Caso caso)
         {
             _context.Casos.Update(caso);
-            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (EsConflictoDeCasoActivo(ex))
+            {
+                throw new BusinessConflictException(
+                    "El cliente ya tiene otro caso activo."
+                );
+            }
         }
         public async Task EliminarAsync(Caso caso)
         {
@@ -138,6 +161,25 @@ namespace Infraestructura.Repositorios
         c.Id != casoId &&
         c.Estado != EstadoCaso.Cerrado
     );
+        }
+
+        private static bool EsConflictoDeCasoActivo(DbUpdateException exception)
+        {
+            for (Exception? current = exception;
+                 current is not null;
+                 current = current.InnerException)
+            {
+                if (current is SqlException sqlException &&
+                    sqlException.Number is 2601 or 2627 &&
+                    sqlException.Message.Contains(
+                        CasoConfiguration.ActiveCaseUniqueIndexName,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
     }
