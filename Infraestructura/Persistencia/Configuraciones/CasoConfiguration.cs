@@ -23,6 +23,9 @@ namespace Infraestructura.Persistencia.Configuraciones
                    .HasConversion<string>()
                    .HasMaxLength(20);
 
+            builder.Property(c => c.Version)
+                   .IsRowVersion();
+
             builder.HasIndex(
                        c => c.ClienteId,
                        ActiveCaseUniqueIndexName)

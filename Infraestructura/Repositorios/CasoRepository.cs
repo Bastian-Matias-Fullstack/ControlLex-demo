@@ -7,6 +7,7 @@ using Aplicacion.DTOs;
 using Aplicacion.Excepciones;
 using Infraestructura.Persistencia.Configuraciones;
 using Microsoft.Data.SqlClient;
+using Aplicacion.Servicios.Casos;
 
 namespace Infraestructura.Repositorios
 {
@@ -42,13 +43,23 @@ namespace Infraestructura.Repositorios
                 );
             }
         }
-        public async Task ActualizarAsync(Caso caso)
+        public async Task ActualizarAsync(Caso caso, byte[] versionEsperada)
         {
             _context.Casos.Update(caso);
+            _context.Entry(caso)
+                .Property(c => c.Version)
+                .OriginalValue = versionEsperada;
 
             try
             {
                 await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new BusinessConflictException(
+                    "El caso fue modificado por otro usuario. " +
+                    "Recarga los datos e inténtalo nuevamente."
+                );
             }
             catch (DbUpdateException ex) when (EsConflictoDeCasoActivo(ex))
             {
@@ -110,9 +121,25 @@ namespace Infraestructura.Repositorios
 
             var total = await query.CountAsync();
             var skip = (filtro.Pagina - 1) * filtro.Tamanio;
-            var items = await query
+            var rows = await query
                 .Skip(skip)
                 .Take(filtro.Tamanio)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Titulo,
+                    c.Estado,
+                    c.FechaCreacion,
+                    c.ClienteId,
+                    NombreCliente = c.Cliente.Nombre,
+                    c.Descripcion,
+                    c.MotivoCierre,
+                    c.TipoCaso,
+                    c.Version
+                })
+                .ToListAsync();
+
+            var items = rows
                 .Select(c => new CasoDto
                 {
                     Id = c.Id,
@@ -120,12 +147,13 @@ namespace Infraestructura.Repositorios
                     Estado = c.Estado,
                     FechaCreacion = c.FechaCreacion,
                     ClienteId = c.ClienteId,
-                    NombreCliente = c.Cliente.Nombre,
+                    NombreCliente = c.NombreCliente,
                     Descripcion = c.Descripcion ?? "",
                     MotivoCierre = c.MotivoCierre ?? "",
-                    TipoCaso = c.TipoCaso
+                    TipoCaso = c.TipoCaso,
+                    Version = CasoVersionToken.Codificar(c.Version)
                 })
-                .ToListAsync();
+                .ToList();
             var resumen = new ResumenCasosDto
             {
                 Total = total,

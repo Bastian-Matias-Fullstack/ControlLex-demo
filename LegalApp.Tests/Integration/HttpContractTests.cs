@@ -75,6 +75,30 @@ public sealed class HttpContractTests
     }
 
     [Fact]
+    public async Task Stale_case_update_returns_409_problem_details()
+    {
+        using var factory = new ControlLexApiFactory(
+            CasoRepositoryFailure.Concurrency);
+        using var client = CreateClient(factory, "Admin");
+
+        var response = await client.PutAsJsonAsync("/api/Casos/1", new
+        {
+            titulo = "Actualización concurrente",
+            descripcion = "Descripción actualizada",
+            tipoCaso = "Civil",
+            clienteId = 1,
+            version = "AAAAAAAAAAA="
+        });
+
+        var problem = await AssertProblemAsync(
+            response,
+            HttpStatusCode.Conflict);
+        Assert.Contains(
+            "modificado por otro usuario",
+            problem.GetProperty("detail").GetString());
+    }
+
+    [Fact]
     public async Task Unexpected_exception_returns_safe_500_problem_details()
     {
         using var factory = new ControlLexApiFactory(CasoRepositoryFailure.Unexpected);

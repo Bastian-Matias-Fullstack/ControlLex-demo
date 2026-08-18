@@ -8,6 +8,8 @@ using Xunit;
 using FluentAssertions;
 public class CerrarCasoServiceTests
 {
+    private const string VersionValida = "AAAAAAAAAAA=";
+
     private readonly Mock<ICasoRepository> _casoRepoMock;
     private readonly CerrarCasoService _service;
     public CerrarCasoServiceTests()
@@ -34,7 +36,8 @@ public class CerrarCasoServiceTests
         // Arrange
         var request = new CerrarCasoRequest
         {
-            MotivoCierre = "Finalizado"
+            MotivoCierre = "Finalizado",
+            Version = VersionValida
         };
 
         _casoRepoMock
@@ -47,7 +50,7 @@ public class CerrarCasoServiceTests
         // Assert
         await act.Should().ThrowAsync<NotFoundException>();
 
-        _casoRepoMock.Verify(r => r.ActualizarAsync(It.IsAny<Caso>()), Times.Never);
+        _casoRepoMock.Verify(r => r.ActualizarAsync(It.IsAny<Caso>(), It.IsAny<byte[]>()), Times.Never);
     }
 
 
@@ -62,7 +65,8 @@ public class CerrarCasoServiceTests
 
         var request = new CerrarCasoRequest
         {
-            MotivoCierre = "Duplicado"
+            MotivoCierre = "Duplicado",
+            Version = VersionValida
         };
 
         _casoRepoMock
@@ -90,7 +94,8 @@ public class CerrarCasoServiceTests
 
         var request = new CerrarCasoRequest
         {
-            MotivoCierre = "Finalizado"
+            MotivoCierre = "Finalizado",
+            Version = VersionValida
         };
 
         _casoRepoMock
@@ -117,7 +122,8 @@ public class CerrarCasoServiceTests
 
         var request = new CerrarCasoRequest
         {
-            MotivoCierre = ""
+            MotivoCierre = "",
+            Version = VersionValida
         };
 
         _casoRepoMock
@@ -145,7 +151,8 @@ public class CerrarCasoServiceTests
 
         var request = new CerrarCasoRequest
         {
-            MotivoCierre = "Resuelto"
+            MotivoCierre = "Resuelto",
+            Version = VersionValida
         };
         _casoRepoMock
             .Setup(r => r.ObtenerPorIdAsync(1))
@@ -158,7 +165,7 @@ public class CerrarCasoServiceTests
         caso.ModifiedBy.Should().Be("usuario.test");
         caso.FechaCierre.Should().NotBeNull();
         _casoRepoMock.Verify(
-            r => r.ActualizarAsync(It.IsAny<Caso>()),
+            r => r.ActualizarAsync(It.IsAny<Caso>(), It.IsAny<byte[]>()),
             Times.Once
         );
     }
@@ -173,7 +180,8 @@ public class CerrarCasoServiceTests
         };
         var request = new CerrarCasoRequest
         {
-            MotivoCierre = "Cancelado"
+            MotivoCierre = "Cancelado",
+            Version = VersionValida
         };
         _casoRepoMock
             .Setup(r => r.ObtenerPorIdAsync(1))
@@ -186,7 +194,7 @@ public class CerrarCasoServiceTests
         caso.ModifiedBy.Should().Be("admin");
 
         _casoRepoMock.Verify(
-            r => r.ActualizarAsync(It.IsAny<Caso>()),
+            r => r.ActualizarAsync(It.IsAny<Caso>(), It.IsAny<byte[]>()),
             Times.Once
         );
     }
@@ -199,7 +207,11 @@ public class CerrarCasoServiceTests
             Estado = EstadoCaso.Pendiente,
             CreatedBy = "creador@legal.cl"
         };
-        var request = new CerrarCasoRequest { MotivoCierre = "Finalizado" };
+        var request = new CerrarCasoRequest
+        {
+            MotivoCierre = "Finalizado",
+            Version = VersionValida
+        };
 
         _casoRepoMock
             .Setup(r => r.ObtenerPorIdAsync(1))

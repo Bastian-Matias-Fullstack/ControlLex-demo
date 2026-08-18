@@ -3,6 +3,7 @@ using Aplicacion.DTOs;
 using Aplicacion.Excepciones;
 using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
+using Aplicacion.Servicios.Casos;
 using Dominio.Entidades;
 using System;
 using System.Collections.Generic;
@@ -80,7 +81,8 @@ namespace Aplicacion.Casos
             FechaCreacion = nuevoCaso.FechaCreacion,
             NombreCliente = cliente.Nombre,
             TipoCaso = nuevoCaso.TipoCaso,
-            Descripcion = nuevoCaso.Descripcion
+            Descripcion = nuevoCaso.Descripcion,
+            Version = CasoVersionToken.Codificar(nuevoCaso.Version)
                 };
         }
     }

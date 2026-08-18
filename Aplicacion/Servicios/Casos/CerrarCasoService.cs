@@ -41,6 +41,8 @@ namespace Aplicacion.Servicios.Casos
             if (caso.EstaCerrado())
                 throw new BusinessConflictException("El caso ya está cerrado.");
 
+            var versionEsperada = CasoVersionToken.Decodificar(request.Version);
+
             if (caso.Estado == EstadoCaso.EnProceso)
             {
                 if (string.IsNullOrWhiteSpace(caso.Descripcion))
@@ -68,7 +70,7 @@ namespace Aplicacion.Servicios.Casos
             caso.UpdatedAt = fechaCierre;
             caso.ModifiedBy = actor;
 
-            await _casoRepository.ActualizarAsync(caso);
+            await _casoRepository.ActualizarAsync(caso, versionEsperada);
         }
     }
 }

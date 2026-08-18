@@ -121,7 +121,8 @@ namespace API.Controllers
                 NombreCliente = caso.Cliente?.Nombre,
                 TipoCaso = caso.TipoCaso,
                 Descripcion = caso.Descripcion,
-                MotivoCierre = caso.MotivoCierre
+                MotivoCierre = caso.MotivoCierre,
+                Version = CasoVersionToken.Codificar(caso.Version)
             };
 
             return Ok(dto);
@@ -205,7 +206,8 @@ namespace API.Controllers
                 Estado = c.Estado,
                 TipoCaso =c.TipoCaso,
                 FechaCreacion = c.FechaCreacion,
-                NombreCliente = c.NombreCliente
+                NombreCliente = c.NombreCliente,
+                Version = CasoVersionToken.Codificar(c.Version)
             }));
                
             }

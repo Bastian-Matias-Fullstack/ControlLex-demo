@@ -6,5 +6,7 @@ namespace Aplicacion.DTO
     {
         [StringLength(1000)]
         public string? MotivoCierre { get; set; }
+        [Required]
+        public string Version { get; set; } = string.Empty;
     }
 }

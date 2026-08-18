@@ -558,13 +558,13 @@ async function cargarCasosDesdeBackend() {
             );
 
             const acciones = crearCeldaCaso(null, "text-nowrap");
-            acciones.appendChild(crearBotonCaso("btn btn-sm btn-outline-light me-1 btn-ver", caso.id, caso.estado, "Ver", "bi-eye-fill"));
+            acciones.appendChild(crearBotonCaso("btn btn-sm btn-outline-light me-1 btn-ver", caso.id, caso.estado, caso.version, "Ver", "bi-eye-fill"));
 
             if (estado !== "cerrado") {
                 acciones.append(
-                    crearBotonCaso("btn btn-sm btn-outline-warning btn-editar-caso", caso.id, caso.estado, "Editar", "bi-pencil-fill"),
-                    crearBotonCaso("btn btn-sm btn-outline-danger btn-eliminar", caso.id, caso.estado, "Eliminar", "bi-trash-fill"),
-                    crearBotonCaso("btn btn-sm btn-outline-secondary btn-cerrar", caso.id, caso.estado, "Cerrar", "bi-lock-fill")
+                    crearBotonCaso("btn btn-sm btn-outline-warning btn-editar-caso", caso.id, caso.estado, caso.version, "Editar", "bi-pencil-fill"),
+                    crearBotonCaso("btn btn-sm btn-outline-danger btn-eliminar", caso.id, caso.estado, caso.version, "Eliminar", "bi-trash-fill"),
+                    crearBotonCaso("btn btn-sm btn-outline-secondary btn-cerrar", caso.id, caso.estado, caso.version, "Cerrar", "bi-lock-fill")
                 );
             }
 
@@ -623,13 +623,13 @@ async function cargarCasosDesdeBackend() {
 
             const acciones = document.createElement("div");
             acciones.className = "caso-card-actions";
-            acciones.appendChild(crearBotonCaso("btn btn-sm btn-outline-light me-1 btn-ver", caso.id, caso.estado, "Ver", "bi-eye-fill"));
+            acciones.appendChild(crearBotonCaso("btn btn-sm btn-outline-light me-1 btn-ver", caso.id, caso.estado, caso.version, "Ver", "bi-eye-fill"));
 
             if (estado !== "cerrado") {
                 acciones.append(
-                    crearBotonCaso("btn btn-sm btn-outline-warning btn-editar-caso", caso.id, caso.estado, "Editar", "bi-pencil-fill"),
-                    crearBotonCaso("btn btn-sm btn-outline-danger btn-eliminar", caso.id, caso.estado, "Eliminar", "bi-trash-fill"),
-                    crearBotonCaso("btn btn-sm btn-outline-secondary btn-cerrar", caso.id, caso.estado, "Cerrar", "bi-lock-fill")
+                    crearBotonCaso("btn btn-sm btn-outline-warning btn-editar-caso", caso.id, caso.estado, caso.version, "Editar", "bi-pencil-fill"),
+                    crearBotonCaso("btn btn-sm btn-outline-danger btn-eliminar", caso.id, caso.estado, caso.version, "Eliminar", "bi-trash-fill"),
+                    crearBotonCaso("btn btn-sm btn-outline-secondary btn-cerrar", caso.id, caso.estado, caso.version, "Cerrar", "bi-lock-fill")
                 );
             }
 
@@ -974,12 +974,13 @@ Rellena un modal Bootstrap para mostrar info detallada */
         return icono;
     }
 
-    function crearBotonCaso(clases, id, estado, titulo, iconoClase) {
+    function crearBotonCaso(clases, id, estado, version, titulo, iconoClase) {
         const boton = document.createElement("button");
         boton.type = "button";
         boton.className = clases;
         boton.dataset.id = textoSeguro(id);
         boton.dataset.estado = textoSeguro(estado);
+        boton.dataset.version = textoSeguro(version);
         boton.title = titulo;
 
         const icono = document.createElement("i");
@@ -1019,12 +1020,14 @@ Rellena un modal Bootstrap para mostrar info detallada */
                 title: 'Error',
                 text: mensaje,
             });
+            return mensaje;
         } catch {
             Swal.fire({
                 icon: 'error',
                 title: 'Error inesperado',
                 text: mensajePorDefecto,
             });
+            return mensajePorDefecto;
         }
     }
 //  VALIDACIÓN INLINE (helpers)
@@ -1218,6 +1221,7 @@ if (e.target.closest(".btn-editar-caso, .btn-outline-warning")) {
         }
 
         document.getElementById("form-id").value = data.id;
+        document.getElementById("form-version").value = data.version ?? "";
         document.getElementById("form-titulo").value = data.titulo ?? "";
         document.getElementById("form-descripcion").value = data.descripcion ?? "";
 
@@ -1363,6 +1367,7 @@ if (e.target.closest(".btn-cerrar")) {
 
     const btn = e.target.closest(".btn-cerrar");
     const id = btn.dataset.id;
+    const version = btn.dataset.version;
 
     const fila = btn.closest("tr");
     const card = btn.closest(".caso-card");
@@ -1375,6 +1380,16 @@ if (e.target.closest(".btn-cerrar")) {
     ).trim().toLowerCase();
 
     if (!id) return;
+
+    if (!version) {
+        await cargarCasosDesdeBackend();
+        Swal.fire({
+            icon: "info",
+            title: "Datos actualizados",
+            text: "Recarga el caso e intenta cerrarlo nuevamente."
+        });
+        return;
+    }
 
     const claveAccion = `cerrar:${id}`;
     if (!iniciarAccionCaso(claveAccion)) return;
@@ -1424,7 +1439,7 @@ if (e.target.closest(".btn-cerrar")) {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ motivoCierre: motivo })
+            body: JSON.stringify({ motivoCierre: motivo, version })
         });
 
         if (!res.ok) {
@@ -1520,6 +1535,7 @@ document.getElementById("btnNuevoCaso")?.addEventListener("click", async () => {
         });
 
         document.getElementById("form-id").value = "";
+        document.getElementById("form-version").value = "";
 
         const clienteSelect = document.getElementById("form-cliente");
         clienteSelect.disabled = false;
@@ -1581,6 +1597,7 @@ document.getElementById("btnNuevoCaso")?.addEventListener("click", async () => {
 
 
         const id = document.getElementById("form-id").value.trim();
+        const version = document.getElementById("form-version").value.trim();
         const titulo = document.getElementById("form-titulo").value.trim();
         const descripcion = document.getElementById("form-descripcion").value.trim();
         const tipoCaso = document.getElementById("form-tipo").value;
@@ -1591,6 +1608,8 @@ document.getElementById("btnNuevoCaso")?.addEventListener("click", async () => {
         );  
 
        
+        const esNuevo = id === "";
+
         const caso = {
             Titulo: titulo,
             Descripcion: descripcion,
@@ -1598,7 +1617,9 @@ document.getElementById("btnNuevoCaso")?.addEventListener("click", async () => {
             ClienteId: clienteId
         };
 
-        const esNuevo = id === "";
+        if (!esNuevo) {
+            caso.Version = version;
+        }
 
         const url = esNuevo ? apiUrl : `${apiUrl}/${id}`;
         const metodo = esNuevo ? "POST" : "PUT";

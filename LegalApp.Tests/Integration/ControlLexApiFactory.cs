@@ -1,4 +1,5 @@
 using Aplicacion.Repositorio;
+using Aplicacion.Excepciones;
 using Dominio.Entidades;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -14,7 +15,8 @@ internal enum CasoRepositoryFailure
 {
     None,
     Dependency,
-    Unexpected
+    Unexpected,
+    Concurrency
 }
 
 internal sealed class ControlLexApiFactory : WebApplicationFactory<Program>
@@ -60,6 +62,26 @@ internal sealed class ControlLexApiFactory : WebApplicationFactory<Program>
                     casoRepository
                         .Setup(repository => repository.ObtenerPorIdAsync(It.IsAny<int>()))
                         .ThrowsAsync(new Exception(SensitiveMarker));
+                    break;
+                case CasoRepositoryFailure.Concurrency:
+                    casoRepository
+                        .Setup(repository => repository.ObtenerPorIdAsync(It.IsAny<int>()))
+                        .ReturnsAsync(new Caso
+                        {
+                            Id = 1,
+                            Titulo = "Caso concurrente",
+                            Descripcion = "Descripción original",
+                            Estado = EstadoCaso.Pendiente,
+                            ClienteId = 1,
+                            Version = new byte[8]
+                        });
+                    casoRepository
+                        .Setup(repository => repository.ActualizarAsync(
+                            It.IsAny<Caso>(),
+                            It.IsAny<byte[]>()))
+                        .ThrowsAsync(new BusinessConflictException(
+                            "El caso fue modificado por otro usuario. " +
+                            "Recarga los datos e inténtalo nuevamente."));
                     break;
                 default:
                     casoRepository

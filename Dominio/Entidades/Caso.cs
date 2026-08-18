@@ -25,6 +25,7 @@ namespace Dominio.Entidades
         public string CreatedBy { get; set; } = string.Empty;
         public string? ModifiedBy { get; set; }
         public DateTimeOffset? UpdatedAt { get; set; }
+        public byte[] Version { get; set; } = Array.Empty<byte>();
 
 
         // Validación de estados

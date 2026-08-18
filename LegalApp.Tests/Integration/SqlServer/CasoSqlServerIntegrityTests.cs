@@ -58,6 +58,75 @@ public class CasoSqlServerIntegrityTests
         await action.Should().ThrowAsync<DbUpdateException>();
     }
 
+    [Fact]
+    public async Task ActualizarAsync_DosLecturasConMismaVersion_RechazaStaleWrite()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(
+            ConnectionVariable);
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var casoId = 0;
+
+        try
+        {
+            await using (var setupContext = CreateContext(connectionString))
+            {
+                var repository = new CasoRepository(setupContext);
+                var caso = CreateCase(clienteId: 1);
+                caso.Estado = EstadoCaso.Cerrado;
+                caso.FechaCierre = DateTime.UtcNow;
+
+                await repository.CrearAsync(caso);
+                casoId = caso.Id;
+            }
+
+            await using var firstContext = CreateContext(connectionString);
+            await using var secondContext = CreateContext(connectionString);
+            var firstRepository = new CasoRepository(firstContext);
+            var secondRepository = new CasoRepository(secondContext);
+            var firstCase = await firstContext.Casos.SingleAsync(c => c.Id == casoId);
+            var secondCase = await secondContext.Casos.SingleAsync(c => c.Id == casoId);
+            var versionN = firstCase.Version.ToArray();
+
+            secondCase.Version.Should().Equal(versionN);
+
+            firstCase.Descripcion = "Primera modificación persistida";
+            await firstRepository.ActualizarAsync(firstCase, versionN);
+
+            firstCase.Version.Should().NotEqual(versionN);
+
+            secondCase.Descripcion = "Segunda modificación obsoleta";
+            Func<Task> staleWrite = async () =>
+                await secondRepository.ActualizarAsync(secondCase, versionN);
+
+            await staleWrite.Should()
+                .ThrowAsync<BusinessConflictException>()
+                .WithMessage("*modificado por otro usuario*");
+
+            await using var verifyContext = CreateContext(connectionString);
+            var persistedDescription = await verifyContext.Casos
+                .Where(c => c.Id == casoId)
+                .Select(c => c.Descripcion)
+                .SingleAsync();
+
+            persistedDescription.Should().Be("Primera modificación persistida");
+        }
+        finally
+        {
+            if (casoId > 0)
+            {
+                await using var cleanupContext = CreateContext(connectionString);
+                await cleanupContext.Casos
+                    .Where(c => c.Id == casoId)
+                    .ExecuteDeleteAsync();
+            }
+        }
+    }
+
     private static AppDbContext CreateContext(string connectionString)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

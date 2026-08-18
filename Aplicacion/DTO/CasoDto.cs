@@ -13,5 +13,6 @@ namespace Aplicacion.DTOs
         public TipoCaso TipoCaso { get; set; }  // ¡Agrega este campo!
         public string Descripcion { get; set; } = string.Empty; // ✅ Este campo es el que falta
         public string? MotivoCierre { get; set; }
+        public string Version { get; set; } = string.Empty;
     }
 }

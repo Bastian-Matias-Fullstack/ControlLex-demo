@@ -9,7 +9,7 @@ namespace Aplicacion.Repositorio
         Task CrearAsync(Caso nuevoCaso);
         Task<Caso?> ObtenerPorIdAsync(int casoId);
         Task<IEnumerable<Caso>> ObtenerTodosAsync();
-        Task ActualizarAsync(Caso caso);
+        Task ActualizarAsync(Caso caso, byte[] versionEsperada);
         Task<Caso?> ObtenerPorId(int id);
         Task EliminarAsync(Caso caso);
         Task<List<ConteoPorClienteDto>> ObtenerConteoCasosPorClienteAsync();

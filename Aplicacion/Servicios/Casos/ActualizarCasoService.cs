@@ -34,6 +34,8 @@ namespace Aplicacion.Servicios.Casos
                     "No se puede editar un caso cerrado."
                 );
 
+            var versionEsperada = CasoVersionToken.Decodificar(request.Version);
+
             if (request.ClienteId <= 0)
                 throw new InvalidRequestException("Debe seleccionar un cliente válido.");
 
@@ -51,7 +53,7 @@ namespace Aplicacion.Servicios.Casos
                 caso.UpdatedAt = DateTimeOffset.UtcNow;
                 caso.ModifiedBy = actor;
 
-                await _casoRepository.ActualizarAsync(caso);
+                await _casoRepository.ActualizarAsync(caso, versionEsperada);
                 return;
             }
 
@@ -93,7 +95,7 @@ namespace Aplicacion.Servicios.Casos
                 caso.FechaCambioEstado = DateTime.UtcNow;
             }
 
-            await _casoRepository.ActualizarAsync(caso);
+            await _casoRepository.ActualizarAsync(caso, versionEsperada);
         }
     }
 }
