@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace LegalApp.Tests.Integration;
@@ -40,6 +41,7 @@ internal sealed class ControlLexApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(
             "ConnectionStrings:DefaultConnection",
             "Server=(localdb)\\mssqllocaldb;Database=ControlLexIntegrationTests;Trusted_Connection=True;");
+        builder.ConfigureLogging(logging => logging.ClearProviders());
 
         builder.ConfigureTestServices(services =>
         {

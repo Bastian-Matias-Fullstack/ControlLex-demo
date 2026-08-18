@@ -5,26 +5,22 @@ using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
 using Dominio.Entidades;
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using Moq;
 public class CrearCasoServiceTests
 {
     private readonly Mock<ICasoRepository> _casoRepoMock;
     private readonly Mock<IClienteRepository> _clienteRepoMock;
-    private readonly Mock<ILogger<CrearCasoService>> _loggerMock;
     private readonly FormateadorNombreService _formateador;
     private readonly CrearCasoService _service;
     public CrearCasoServiceTests()
     {
         _casoRepoMock = new Mock<ICasoRepository>();
         _clienteRepoMock = new Mock<IClienteRepository>();
-        _loggerMock = new Mock<ILogger<CrearCasoService>>();
         _formateador = new FormateadorNombreService();
         _service = new CrearCasoService(
             _casoRepoMock.Object,
             _clienteRepoMock.Object,
-            _formateador,
-            _loggerMock.Object
+            _formateador
         );
     }
     [Fact]
