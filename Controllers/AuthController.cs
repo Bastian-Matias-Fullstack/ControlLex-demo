@@ -3,23 +3,22 @@ using API.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Aplicacion.Servicios.Auth;
 using Aplicacion.DTO;
-using Infraestructura.Persistencia;
-using Microsoft.EntityFrameworkCore;
+using Aplicacion.Repositorio;
 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly IJwtService _jwtService;
-    private readonly AppDbContext _context;
+    private readonly IUsuarioRepositorio _usuarioRepositorio;
     private readonly IHashService _hashService;
     private readonly ILogger<AuthController> _logger;
     private readonly ILoginLockoutService _lockoutService;
 
-    public AuthController(AppDbContext context, IJwtService jwtService, IHashService hashService, ILogger<AuthController> logger, ILoginLockoutService lockoutService)
+    public AuthController(IUsuarioRepositorio usuarioRepositorio, IJwtService jwtService, IHashService hashService, ILogger<AuthController> logger, ILoginLockoutService lockoutService)
     {
         _jwtService = jwtService;
-        _context = context;
+        _usuarioRepositorio = usuarioRepositorio;
         _hashService = hashService;
         _logger = logger;
         _lockoutService = lockoutService;
@@ -45,11 +44,7 @@ public class AuthController : ControllerBase
             problem.Extensions["lockedUntilUtc"] = lockedUntil;
             return StatusCode(StatusCodes.Status429TooManyRequests, problem);
         }
-        /* aqui usamos EF CORE YA QUE ES CONSULTA SIMPLE */
-        var usuario = await _context.Usuarios
-           .Include(u => u.UsuarioRoles)
-           .ThenInclude(ur => ur.Rol)
-           .FirstOrDefaultAsync(u => u.Email == email);
+        var usuario = await _usuarioRepositorio.ObtenerPorEmailConRolesAsync(email);
         if (usuario == null)
         {
             var failedCount = _lockoutService.RegisterFailure(email, out var lockedAfterFailure);

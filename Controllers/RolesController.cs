@@ -1,10 +1,9 @@
 ﻿using Aplicacion.Usuarios.Commands;
 using Aplicacion.Usuarios.Queries;
-using Infraestructura.Persistencia;
+using Aplicacion.Repositorio;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers
 {
@@ -13,19 +12,19 @@ namespace API.Controllers
     [Authorize(Roles = "Admin")]
     public class RolesController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IRolRepositorio _rolRepositorio;
         private readonly IMediator _mediator;
-        public RolesController(AppDbContext context, IMediator mediator)
+        public RolesController(IRolRepositorio rolRepositorio, IMediator mediator)
         {
-            _context = context;
+            _rolRepositorio = rolRepositorio;
             _mediator = mediator;
         }
         [HttpGet]
         public async Task<IActionResult> ObtenerRoles()
         {
-            var roles = await _context.Roles
+            var roles = (await _rolRepositorio.ObtenerTodosAsync())
                 .Select(r => new { r.Id, r.Nombre })
-                .ToListAsync();
+                .ToList();
 
             return Ok(roles);
         }

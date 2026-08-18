@@ -1,6 +1,6 @@
-﻿using Infraestructura.Persistencia;
+﻿
+using Aplicacion.Servicios.Operacional;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 
 namespace API.Controllers
@@ -9,7 +9,7 @@ namespace API.Controllers
     [Route("api/system")]
     public class SystemController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IDatabaseWarmup _databaseWarmup;
         private readonly ILogger<SystemController> _logger;
 
         private static readonly object _stateLock = new();
@@ -17,9 +17,9 @@ namespace API.Controllers
         private static DateTime _lastWarmupSuccessUtc = DateTime.MinValue;
         private static readonly TimeSpan _successCacheTtl = TimeSpan.FromSeconds(45);
 
-        public SystemController(AppDbContext context, ILogger<SystemController> logger)
+        public SystemController(IDatabaseWarmup databaseWarmup, ILogger<SystemController> logger)
         {
-            _context = context;
+            _databaseWarmup = databaseWarmup;
             _logger = logger;
         }
 
@@ -150,19 +150,7 @@ namespace API.Controllers
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-                await _context.Database.OpenConnectionAsync(cts.Token);
-
-                // 1) Fuerza conexión SQL real
-                await _context.Database.ExecuteSqlRawAsync("SELECT 1", cts.Token);
-
-                // 2) Calienta EF y la tabla real que usa login
-                await _context.Usuarios
-                    .AsNoTracking()
-                    .Select(u => u.Id)
-                    .Take(1)
-                    .ToListAsync(cts.Token);
-
-                await _context.Database.CloseConnectionAsync();
+                await _databaseWarmup.EjecutarAsync(cts.Token);
 
                 dbSw.Stop();
                 totalSw.Stop();
@@ -185,15 +173,6 @@ namespace API.Controllers
             {
                 dbSw.Stop();
                 totalSw.Stop();
-
-                try
-                {
-                    await _context.Database.CloseConnectionAsync();
-                }
-                catch
-                {
-                    // no-op
-                }
 
                 _logger.LogWarning(
                     ex,

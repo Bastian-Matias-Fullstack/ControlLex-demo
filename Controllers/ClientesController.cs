@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Infraestructura.Persistencia;
-using Microsoft.EntityFrameworkCore;
+using Aplicacion.Repositorio;
 
 
 namespace API.Controllers
@@ -11,23 +10,23 @@ namespace API.Controllers
     [Authorize(Roles = "Admin,Soporte,Abogado")]
     public class ClientesController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IClienteRepository _clienteRepository;
 
-        public ClientesController(AppDbContext context)
+        public ClientesController(IClienteRepository clienteRepository)
         {
-            _context = context;
+            _clienteRepository = clienteRepository;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetClientes()
         {
-            var clientes = await _context.Clientes
+            var clientes = (await _clienteRepository.ObtenerTodosAsync())
                 .Select(c => new
                 {
                     c.Id,
                     c.Nombre
                 })
-                .ToListAsync();
+                .ToList();
 
             return Ok(clientes);
         }

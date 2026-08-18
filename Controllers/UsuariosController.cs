@@ -1,11 +1,9 @@
 ﻿using Aplicacion.Usuarios.Commands;
 using API.Helpers;
 using Aplicacion.Usuarios.Queries;
-using Infraestructura.Persistencia;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers
 {
@@ -14,12 +12,10 @@ namespace API.Controllers
     [Authorize(Roles = "Admin,Soporte")]
     public class UsuariosController : ControllerBase
     {
-        private readonly AppDbContext _context;
         //invocamos mediator para la contraseña 
         private readonly IMediator _mediator;
-        public UsuariosController(AppDbContext context, IMediator mediator)
+        public UsuariosController(IMediator mediator)
         {
-            _context = context;
             _mediator = mediator;
         }
         [HttpGet]

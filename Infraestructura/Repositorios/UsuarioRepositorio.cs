@@ -82,6 +82,13 @@ namespace Infraestructura.Repositorios
                 .Include(u => u.UsuarioRoles)  // ⚠️ Importante para poder agregar roles en el handler
                 .FirstOrDefaultAsync(u => u.Id == id);
         }
+        public async Task<Usuario?> ObtenerPorEmailConRolesAsync(string email)
+        {
+            return await _context.Usuarios
+                .Include(u => u.UsuarioRoles)
+                .ThenInclude(ur => ur.Rol)
+                .FirstOrDefaultAsync(u => u.Email == email);
+        }
         public async Task EliminarAsync(Usuario usuario)
         {
             _context.Usuarios.Remove(usuario);

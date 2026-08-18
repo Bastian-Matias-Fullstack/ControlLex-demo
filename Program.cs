@@ -5,6 +5,7 @@ using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
 using Aplicacion.Servicios.Auth;
 using Aplicacion.Servicios.Casos;
+using Aplicacion.Servicios.Operacional;
 using Aplicacion.Validaciones;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -55,6 +56,7 @@ builder.Services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
 builder.Services.AddScoped<IRolRepositorio, RolRepositorio>();
 builder.Services.AddScoped<IHashService, HashService>();
 builder.Services.AddScoped<IDemoResetService, DemoResetService>();
+builder.Services.AddScoped<IDatabaseWarmup, EfDatabaseWarmup>();
 builder.Services.AddScoped<DemoBootstrapService>();
 builder.Services.AddSingleton<ILoginLockoutService, LoginLockoutService>();
 builder.Services.AddMediatR(cfg =>

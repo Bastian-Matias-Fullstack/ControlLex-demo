@@ -32,6 +32,11 @@ namespace Infraestructura.Repositorios
                 .FirstOrDefaultAsync(c => c.Nombre == nombre);
         }
 
+        public async Task<List<Cliente>> ObtenerTodosAsync()
+        {
+            return await _context.Clientes.ToListAsync();
+        }
+
         public async Task CrearAsync(Cliente cliente)
         {
             await _context.Clientes.AddAsync(cliente);
@@ -39,4 +44,3 @@ namespace Infraestructura.Repositorios
         }
     }
 }
-    

@@ -17,6 +17,7 @@ namespace Aplicacion.Repositorio
 
         // Obtiene un usuario con sus roles, o null si no existe
         Task<Usuario?> ObtenerPorIdAsync(int id);
+        Task<Usuario?> ObtenerPorEmailConRolesAsync(string email);
         /// <summary>
         /// Verifica si existe un usuario con el email indicado.
         /// Usado en el caso de creación de usuarios.
