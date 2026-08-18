@@ -59,7 +59,6 @@ builder.Services.AddScoped<DemoBootstrapService>();
 builder.Services.AddSingleton<ILoginLockoutService, LoginLockoutService>();
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssemblyContaining<Aplicacion.Usuarios.Handlers.CrearUsuarioCommandHandler>());
-builder.Services.AddHttpContextAccessor();
 //🔹 Validaciones (FluentValidation)
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

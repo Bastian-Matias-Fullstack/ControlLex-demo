@@ -6,40 +6,14 @@ using Dominio.Entidades;
 using Moq;
 using Xunit;
 using FluentAssertions;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 public class CerrarCasoServiceTests
 {
     private readonly Mock<ICasoRepository> _casoRepoMock;
-    private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
     private readonly CerrarCasoService _service;
     public CerrarCasoServiceTests()
     {
         _casoRepoMock = new Mock<ICasoRepository>();
-        _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
-
-        _service = new CerrarCasoService(
-            _casoRepoMock.Object,
-            _httpContextAccessorMock.Object
-        );
-    }
-    private void MockUser(string userName)
-    {
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.Name, userName)
-        };
-
-        var identity = new ClaimsIdentity(claims, "TestAuth");
-        var principal = new ClaimsPrincipal(identity);
-
-        var context = new DefaultHttpContext
-        {
-            User = principal
-        };
-        _httpContextAccessorMock
-            .Setup(x => x.HttpContext)
-            .Returns(context);
+        _service = new CerrarCasoService(_casoRepoMock.Object);
     }
 
     [Fact]
@@ -163,7 +137,6 @@ public class CerrarCasoServiceTests
     public async Task EjecutarAsync_EnProcesoValido_CierraCasoCorrectamente()
     {
         // Arrange
-        MockUser("usuario.test");
         var caso = new Caso
         {
             Estado = EstadoCaso.EnProceso,
@@ -178,7 +151,7 @@ public class CerrarCasoServiceTests
             .Setup(r => r.ObtenerPorIdAsync(1))
             .ReturnsAsync(caso);
         // Act
-        await _service.EjecutarAsync(1, request);
+        await _service.EjecutarAsync(1, request, "usuario.test");
         // Assert
         caso.Estado.Should().Be(EstadoCaso.Cerrado);
         caso.MotivoCierre.Should().Be("Resuelto");
@@ -194,7 +167,6 @@ public class CerrarCasoServiceTests
     public async Task EjecutarAsync_PendienteValido_CierraCasoCorrectamente()
     {
         // Arrange
-        MockUser("admin");
         var caso = new Caso
         {
             Estado = EstadoCaso.Pendiente
@@ -207,7 +179,7 @@ public class CerrarCasoServiceTests
             .Setup(r => r.ObtenerPorIdAsync(1))
             .ReturnsAsync(caso);
         // Act
-        await _service.EjecutarAsync(1, request);
+        await _service.EjecutarAsync(1, request, "admin");
         // Assert
         caso.Estado.Should().Be(EstadoCaso.Cerrado);
         caso.MotivoCierre.Should().Be("Cancelado");

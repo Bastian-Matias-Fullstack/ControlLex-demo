@@ -147,7 +147,10 @@ namespace API.Controllers
             int id,
             [FromBody] CerrarCasoRequest request)
         {
-            await _cerrarCasosService.EjecutarAsync(id, request);
+            await _cerrarCasosService.EjecutarAsync(
+                id,
+                request,
+                User.Identity?.Name);
             return NoContent();
         }
 

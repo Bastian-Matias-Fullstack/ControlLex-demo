@@ -2,23 +2,21 @@
 using Aplicacion.Excepciones;
 using Aplicacion.Repositorio;
 using Dominio.Entidades;
-using Microsoft.AspNetCore.Http;
 
 namespace Aplicacion.Servicios.Casos
 {
     public class CerrarCasoService
     {
         private readonly ICasoRepository _casoRepository;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        public CerrarCasoService(
-            ICasoRepository casoRepository,
-            IHttpContextAccessor httpContextAccessor)
+        public CerrarCasoService(ICasoRepository casoRepository)
         {
             _casoRepository = casoRepository;
-            _httpContextAccessor = httpContextAccessor;
         }
 
-        public async Task EjecutarAsync(int casoId, CerrarCasoRequest request)
+        public async Task EjecutarAsync(
+            int casoId,
+            CerrarCasoRequest request,
+            string? usuarioActual = null)
         {
             // Validación de request
             if (request is null)
@@ -29,9 +27,7 @@ namespace Aplicacion.Servicios.Casos
             request.MotivoCierre = (request.MotivoCierre ?? string.Empty).Trim();
 
             // Auditoría
-            var userName =
-                _httpContextAccessor.HttpContext?.User?.Identity?.Name
-                ?? "Sistema";
+            var userName = usuarioActual ?? "Sistema";
 
             // Obtener caso
             var caso = await _casoRepository.ObtenerPorIdAsync(casoId);
