@@ -261,7 +261,38 @@ function applyDemoContextVisibility(context) {
     }
 }
 
+function cargarModuloOpcional(src, inicializador, nombreModulo) {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = () => {
+        if (typeof window[inicializador] === "function") {
+            window[inicializador]();
+        } else {
+            console.warn(`⚠️ ${inicializador} no está definido.`);
+        }
+    };
+    script.onerror = () => console.error(`❌ Error al cargar ${nombreModulo}`);
+    document.body.appendChild(script);
+}
+
+function cargarModulosPorRol(roles) {
+    if (roles.includes("Admin")) {
+        cargarModuloOpcional("/js/roles.js?v=roles-action-lock-1", "initRolesModule", "roles.js");
+    }
+
+    if (roles.includes("Admin") || roles.includes("Soporte")) {
+        cargarModuloOpcional("/js/Usuarios.js?v=usuarios-action-lock-1", "initUsuariosModule", "usuarios.js");
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+
+    document.querySelector(".sidebar-toggle")?.addEventListener("click", toggleSidebar);
+    document.getElementById("nav-dashboard")?.addEventListener("click", () => navigate("mod-dashboard"));
+    document.getElementById("nav-casos")?.addEventListener("click", () => navigate("mod-casos"));
+    document.getElementById("nav-usuarios")?.addEventListener("click", () => navigate("mod-usuarios"));
+    document.getElementById("nav-roles")?.addEventListener("click", () => navigate("mod-roles"));
+    document.getElementById("sidebarOverlay")?.addEventListener("click", closeSidebarMobile);
 
     const token = localStorage.getItem("jwt_token");
     if (!token) {
@@ -286,6 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     configurarSidebarPorRoles(roles);
     aplicarVisibilidadPorRol(roles);
+    cargarModulosPorRol(roles);
 
     const hashModulo = (window.location.hash || "").replace("#", "").trim();
     const moduloSolicitado = hashModulo || null;

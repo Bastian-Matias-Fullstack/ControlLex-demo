@@ -44,34 +44,34 @@
     <div id="saludoUsuarioMobile" class="saludo-usuario-mobile"></div>
     <!-- SIDEBAR -->
     <aside id="sidebar" class="sidebar collapsed">
-        <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" aria-label="Abrir menú de navegación">
+        <button class="sidebar-toggle" type="button" aria-label="Abrir menú de navegación">
             ☰
         </button>
 
         <ul class="sidebar-menu">
-            <li id="nav-dashboard" onclick="navigate('mod-dashboard')">
+            <li id="nav-dashboard">
                 <i class="bi bi-speedometer2"></i>
                 <span>Resumen</span>
             </li>
 
-            <li id="nav-casos" onclick="navigate('mod-casos')">
+            <li id="nav-casos">
                 <i class="bi bi-folder2-open"></i>
                 <span>Casos</span>
             </li>
 
-            <li id="nav-usuarios" onclick="navigate('mod-usuarios')">
+            <li id="nav-usuarios">
                 <i class="bi bi-people"></i>
                 <span>Usuarios</span>
             </li>
 
-            <li id="nav-roles" onclick="navigate('mod-roles')">
+            <li id="nav-roles">
                 <i class="bi bi-shield-lock"></i>
                 <span>Roles</span>
             </li>
         </ul>
     </aside>
 
-    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
     <div class="container mt-4 mb-5">
         <!-- resumen -->
 
@@ -841,51 +841,6 @@
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <script src="/js/libs/html2pdf.bundle.min.js?v=pdf-sandbox-20260428"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="/js/dashboard.js?v=casos-listado-detalle-lock-1"></script>   
-    <script>
-        const token = localStorage.getItem("jwt_token");
-        if (token) {
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                const roles = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-                const rolesArray = Array.isArray(roles) ? roles : [roles];
-                // 🧠 Lógica para cargar el módulo de roles si es Admin
-                if (rolesArray.includes("Admin")) {
-                    const script = document.createElement("script");
-                    script.src = "/js/roles.js?v=roles-action-lock-1";
-                    script.onload = () => {
-                        if (window.initRolesModule) {
-                            window.initRolesModule(); // ✅ aquí se ejecuta todo lo de roles.js
-                        } else {
-                            console.warn("⚠️ initRolesModule no está definido.");
-                        }
-                    };
-
-                    script.onerror = () => {
-                        console.error("❌ Error al cargar roles.js");
-                    };
-
-                    document.body.appendChild(script);
-                }
-                //  NUEVO: lógica para cargar el módulo de usuarios
-                if (rolesArray.includes("Admin") || rolesArray.includes("Soporte")) {
-                    const scriptUsuarios = document.createElement("script");
-                    scriptUsuarios.src = "/js/Usuarios.js?v=usuarios-action-lock-1";
-                    scriptUsuarios.onload = () => {
-                        if (window.initUsuariosModule) {
-                            window.initUsuariosModule(); // << ESTE arranca todo
-                        } else {
-                            console.warn("⚠️ initUsuariosModule no está definido.");
-                        }
-                    };
-                    scriptUsuarios.onerror = () => console.error("❌ Error al cargar usuarios.js");
-                    document.body.appendChild(scriptUsuarios);
-                }
-
-            } catch (e) {
-                console.error("No se pudo cargar roles.js:", e);
-            }
-        }
-    </script>
+    <script src="/js/dashboard.js?v=casos-listado-detalle-lock-1"></script>
 </body>
 </html>

@@ -210,6 +210,26 @@ public sealed class HttpContractTests
     }
 
     [Fact]
+    public async Task Production_security_headers_include_strict_csp()
+    {
+        using var factory = new ControlLexApiFactory(renderWebService: true);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync("/health/live");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var csp = response.Headers.GetValues("Content-Security-Policy").Single();
+        Assert.Contains("object-src 'none';", csp);
+        Assert.Contains("frame-ancestors 'none';", csp);
+        Assert.Contains("script-src 'self' https://cdn.jsdelivr.net;", csp);
+        Assert.DoesNotContain("script-src 'self' 'unsafe-inline'", csp);
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Equal("camera=(), microphone=(), geolocation=()", response.Headers.GetValues("Permissions-Policy").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+    }
+
+    [Fact]
     public async Task Liveness_endpoint_returns_200()
     {
         using var factory = new ControlLexApiFactory();

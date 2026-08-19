@@ -434,25 +434,21 @@ app.Use(async (context, next) =>
     context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     context.Response.Headers.TryAdd("Cross-Origin-Opener-Policy", "same-origin");
     context.Response.Headers.TryAdd("Cross-Origin-Resource-Policy", "same-origin");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
 
-    if (app.Environment.IsProduction() &&
-        builder.Configuration.GetValue<bool>("SecurityHeaders:EnableCsp"))
+    if (app.Environment.IsProduction())
     {
-        var frameAncestors = builder.Configuration
-            .GetSection("SecurityHeaders:FrameAncestors")
-            .Get<string[]>() ?? new[] { "'self'", "http://localhost:4200" };
-        var frameAncestorsValue = string.Join(" ", frameAncestors);
-
         var csp = string.Join(" ",
             "default-src 'self';",
             "base-uri 'self';",
             "object-src 'none';",
-            "frame-ancestors " + frameAncestorsValue + ";",
-            "img-src 'self' data: https:;",
-            "font-src 'self' https: data:;",
-            "style-src 'self' 'unsafe-inline' https:;",
-            "script-src 'self' 'unsafe-inline' https:;",
-            "connect-src 'self' https:;",
+            "frame-src 'none';",
+            "frame-ancestors 'none';",
+            "img-src 'self' data:;",
+            "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com;",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com;",
+            "script-src 'self' https://cdn.jsdelivr.net;",
+            "connect-src 'self';",
             "form-action 'self';"
         );
 
