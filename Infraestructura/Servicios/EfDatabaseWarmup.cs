@@ -21,6 +21,7 @@ namespace Infraestructura.Servicios
                 await _context.Database.ExecuteSqlRawAsync("SELECT 1", cancellationToken);
                 await _context.Usuarios
                     .AsNoTracking()
+                    .OrderBy(u => u.Id)
                     .Select(u => u.Id)
                     .Take(1)
                     .ToListAsync(cancellationToken);
