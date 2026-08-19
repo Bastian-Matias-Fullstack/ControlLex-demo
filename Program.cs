@@ -16,7 +16,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +30,15 @@ using System.Threading.RateLimiting;
 using Aplicacion.Servicios.Demo;
 //Configuración de Servicios (DI)
 var builder = WebApplication.CreateBuilder(args);
+var isRenderWebService =
+    string.Equals(
+        builder.Configuration["RENDER"],
+        "true",
+        StringComparison.OrdinalIgnoreCase) &&
+    string.Equals(
+        builder.Configuration["RENDER_SERVICE_TYPE"],
+        "web",
+        StringComparison.OrdinalIgnoreCase);
 
 //aqui permitimos 
 //var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -203,18 +211,6 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
 });
-// Forwarded Headers (Render / reverse proxy)
-// Esto permite que ASP.NET Core reconozca el esquema HTTPS real y la IP real del cliente.
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders =
-        ForwardedHeaders.XForwardedFor |
-        ForwardedHeaders.XForwardedProto;
-    // Importante en hosting con proxy (Render): si no lo limpias,
-    // puede ignorar headers porque "no conoce" el proxy.
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
 //   Rate Limiting (estricto pero usable para demo pública)
 // - Global API: 20 req/min por IP
 // - Login: 3 req/min por IP
@@ -239,7 +235,7 @@ builder.Services.AddRateLimiter(options =>
     };
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
-        // IP (con ForwardedHeaders en Render debería ser la real)
+        // Effective client IP is resolved before the rate limiter middleware.
         var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         var path = httpContext.Request.Path.Value?.ToLowerInvariant() ?? "";
@@ -339,7 +335,18 @@ if (seedDemoRequested)
     return;
 }
 
-app.UseForwardedHeaders();
+app.Use(async (context, next) =>
+{
+    context.Connection.RemoteIpAddress =
+        ClientIpResolver.Resolve(context, isRenderWebService);
+
+    if (isRenderWebService)
+    {
+        context.Request.Scheme = Uri.UriSchemeHttps;
+    }
+
+    await next();
+});
 app.Use(async (context, next) =>
 {
     const string headerName = "X-Correlation-ID";
@@ -412,8 +419,12 @@ if (swaggerEnabled)
 }
 if (app.Environment.IsProduction())
 {
-    app.UseHsts();              
-    app.UseHttpsRedirection();
+    app.UseHsts();
+
+    if (!isRenderWebService)
+    {
+        app.UseHttpsRedirection();
+    }
 }
 
 app.Use(async (context, next) =>

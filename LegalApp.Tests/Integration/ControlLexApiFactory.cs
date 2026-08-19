@@ -27,15 +27,24 @@ internal sealed class ControlLexApiFactory : WebApplicationFactory<Program>
     internal const string SensitiveMarker = "INTERNAL-SENSITIVE-MARKER";
 
     private readonly CasoRepositoryFailure _failure;
+    private readonly bool _renderWebService;
 
-    public ControlLexApiFactory(CasoRepositoryFailure failure = CasoRepositoryFailure.None)
+    public ControlLexApiFactory(
+        CasoRepositoryFailure failure = CasoRepositoryFailure.None,
+        bool renderWebService = false)
     {
         _failure = failure;
+        _renderWebService = renderWebService;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(
+            _renderWebService ? "Production" : "Testing");
+        builder.UseSetting("RENDER", _renderWebService ? "true" : "false");
+        builder.UseSetting(
+            "RENDER_SERVICE_TYPE",
+            _renderWebService ? "web" : string.Empty);
         builder.UseSetting("Jwt:Key", JwtKey);
         builder.UseSetting("Jwt:Issuer", JwtIssuer);
         builder.UseSetting("Jwt:Audience", JwtAudience);

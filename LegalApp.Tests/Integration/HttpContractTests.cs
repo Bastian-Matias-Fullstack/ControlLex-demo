@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.IdentityModel.Tokens;
 
 namespace LegalApp.Tests.Integration;
@@ -161,6 +162,51 @@ public sealed class HttpContractTests
         {
             await AssertProblemAsync(response!, HttpStatusCode.TooManyRequests);
         }
+    }
+
+    [Fact]
+    public async Task Render_rate_limit_uses_valid_cloudflare_client_ip()
+    {
+        using var factory = new ControlLexApiFactory(renderWebService: true);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("CF-Connecting-IP", "203.0.113.10");
+        HttpResponseMessage? response = null;
+
+        for (var request = 0; request < 21; request++)
+        {
+            response?.Dispose();
+            response = await client.GetAsync("/health/live");
+        }
+
+        using (response)
+        {
+            Assert.Equal(HttpStatusCode.TooManyRequests, response!.StatusCode);
+        }
+
+        client.DefaultRequestHeaders.Remove("CF-Connecting-IP");
+        client.DefaultRequestHeaders.Add("CF-Connecting-IP", "203.0.113.11");
+
+        using var otherClientResponse = await client.GetAsync("/health/live");
+
+        Assert.Equal(HttpStatusCode.OK, otherClientResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Render_https_contract_returns_hsts_without_redirect()
+    {
+        using var factory = new ControlLexApiFactory(renderWebService: true);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        client.DefaultRequestHeaders.Add("CF-Connecting-IP", "2001:db8::10");
+
+        using var response = await client.GetAsync("/health/live");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(
+            "max-age=31536000",
+            response.Headers.GetValues("Strict-Transport-Security").Single());
     }
 
     [Fact]
