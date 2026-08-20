@@ -1,157 +1,32 @@
-# 04 – QA y Pruebas
+# QA y pruebas
 
-## 🎯 Objetivo de este documento
+## Suite automatizada
 
-Este documento describe **cómo se asegura la calidad en LegalApp**, tanto a nivel backend como frontend,
-y define **qué se considera un comportamiento correcto del sistema**.
+El baseline V1 validado contiene **121 pruebas exitosas**. No se declara cobertura total: la suite cubre comportamientos y fronteras relevantes, no una métrica porcentual de cobertura.
 
-El foco no es solo que el sistema funcione,
-sino que **falle de forma controlada y predecible**.
+| Tipo | Evidencia en el repositorio |
+| --- | --- |
+| Unitarias de dominio | Reglas de `Caso` y `Usuario`. |
+| Unitarias de Application | Creación, actualización, cierre, eliminación, listado, usuarios, roles y tokens de versión. |
+| Arquitectura | `DependencyBoundaryTests` verifica que Domain/Application no dependan de EF Core o ASP.NET Core. |
+| Integración HTTP | `HttpContractTests` verifica contratos de error y respuestas HTTP. |
+| Persistencia SQL Server | `CasoSqlServerIntegrityTests` cubre restricciones de integridad de casos. |
+| Operacionales | `ClientIpResolverTests` cubre resolución de IP para el comportamiento de proxy implementado. |
 
----
+## Contratos HTTP
 
-## 🧠 Enfoque de QA
+Los errores esperados se normalizan como `ProblemDetails`. La suite de integración cubre respuestas 400, 401, 403, 404, 409, 429, 500 y 503 en las rutas que las producen.
 
-El enfoque de QA en LegalApp sigue estos principios:
+## Ejecución
 
-- QA valida **reglas de negocio**, no solo flujos felices
-- Los errores esperados **no generan 500**
-- El backend siempre responde con status codes coherentes
-- El frontend interpreta errores, no los inventa
-- La validación existe tanto en backend como en frontend (con distintos objetivos)
+```powershell
+dotnet restore ".\SoftwareJuridicoEscalableRobusto.sln"
+dotnet build ".\SoftwareJuridicoEscalableRobusto.sln" -c Release --no-restore
+dotnet test ".\SoftwareJuridicoEscalableRobusto.sln" -c Release --no-build
+```
 
----
+Las pruebas SQL Server ejercen una conexión indicada mediante `CONTROLLEX_SQL_TEST_CONNECTION`; sin esa variable, sus escenarios se omiten sin apuntar a una base arbitraria. La validación clean-room de migrations y bootstrap se describe en [07_Production_Readiness.md](07_Production_Readiness.md).
 
-## 🧪 Tipos de pruebas aplicadas
+## Criterio de calidad
 
-### 1️⃣ Tests automatizados (Backend)
-
-Se implementan tests unitarios principalmente en:
-
-- **Application**
-- **Domain**
-
-Características:
-- Uso de mocks para repositorios
-- Validación directa de reglas de negocio
-- Sin dependencias de HTTP ni base de datos real
-
-Ejemplos de pruebas:
-- Crear usuario con email duplicado → excepción de negocio
-- Actualizar entidad inexistente → 404
-- Violación de regla de dominio → 409
-
-> Si una regla no está cubierta por tests o QA manual, se considera incompleta.
-
----
-
-### 2️⃣ QA manual Backend
-
-Se realizan pruebas manuales directamente contra la API (Swagger / HTTP):
-
-- POST / PUT con contratos inválidos → 400
-- Acciones sobre entidades inexistentes → 404
-- Violaciones de reglas → 409
-- Tokens inválidos / expirados → 401
-- Roles sin permiso → 403
-
-El objetivo es validar que **la API nunca devuelva 500 para escenarios esperados**.
-
----
-
-### 3️⃣ QA manual Frontend
-
-El frontend se prueba con enfoque **defensivo**:
-
-- Validaciones inline por campo
-- Estados de carga (disable + texto)
-- Prevención de doble submit
-- Reset correcto de formularios
-- Mensajes claros y no técnicos
-
-SweetAlert se utiliza **solo para eventos globales**, no para validaciones de formulario.
-
----
-
-## 🔍 Casos cubiertos (resumen)
-
-### Módulo Casos (QA cerrado)
-- Crear
-- Editar
-- Eliminar
-- Cerrar
-- Ver detalle
-- Filtrar y paginar
-
-Resultado:
-> Módulo Casos **cerrado y validado**.
-
----
-
-### Módulo Usuarios (QA parcial)
-- Crear usuario
-- Actualizar usuario
-- Manejo de email duplicado
-- Manejo de ID inexistente
-
-Pendiente:
-- Alinear frontend al estándar aplicado en Casos.
-
----
-
-### Módulo Roles (QA pendiente)
-- Asignar roles
-- Evitar duplicados
-- Manejo de errores backend
-
-Pendiente:
-- QA frontend.
-
----
-
-## ⚠️ Manejo de errores (criterio)
-
-LegalApp utiliza un patrón consistente:
-
-| Tipo de error                | Código |
-|-----------------------------|--------|
-| Contrato inválido           | 400    |
-| Entidad no encontrada       | 404    |
-| Regla de negocio violada    | 409    |
-| No autenticado              | 401    |
-| No autorizado               | 403    |
-| Error inesperado            | 500    |
-
-> Los errores 500 se consideran **bugs**, no casos de uso.
-
----
-
-## 🧩 Herramientas utilizadas
-
-- xUnit (tests automatizados)
-- Moq (mocks)
-- Swagger UI (QA manual backend)
-- DevTools (Network / Console)
-- SweetAlert2 (feedback global)
-
----
-
-## 🧠 Criterio de aceptación
-
-Una funcionalidad se considera **QA-ready** cuando:
-
-- Cumple reglas de negocio
-- No genera errores 500 en escenarios esperados
-- Devuelve status codes coherentes
-- Maneja correctamente estados de carga
-- Muestra mensajes claros al usuario
-- Está documentada si tiene pendientes
-
----
-
-## 🧾 Nota final
-
-Este documento define **cómo se valida la calidad en LegalApp**.
-
-Si una funcionalidad no cumple estos criterios,
-no se considera lista para cierre ni despliegue.
+El repositorio busca que los flujos esperados devuelvan contratos predecibles y que las reglas de dominio e integridad de datos no dependan únicamente del frontend. Las pruebas no sustituyen la revisión manual de UX ni validan por sí solas una operación productiva.

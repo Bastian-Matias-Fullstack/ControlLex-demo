@@ -1,40 +1,31 @@
 # Ejecución local de ControlLex
 
-Esta guía describe el procedimiento validado para reconstruir y ejecutar ControlLex en un ambiente local de Development a partir del repositorio.
-
-La ejecución local puede prepararse desde una base de datos nueva mediante EF Core migrations y un bootstrap explícito de datos demo, sin depender de una copia previa de la base de datos.
+Esta guía prepara una base de Development nueva mediante migrations EF Core y el bootstrap demo versionado. No requiere copiar una base existente.
 
 ## Requisitos
 
-- .NET SDK 8
-- SQL Server
-- Git
-- PowerShell o terminal equivalente
+- .NET SDK 8.
+- SQL Server accesible desde el equipo local.
+- Git y PowerShell o una terminal equivalente.
 
 ## 1. Restaurar herramientas y dependencias
-
-Desde la raíz del repositorio:
 
 ```powershell
 dotnet tool restore
 dotnet restore ".\SoftwareJuridicoEscalableRobusto.sln"
 ```
 
-`dotnet-ef` está definido como herramienta local del repositorio mediante `dotnet-tools.json`.
+`dotnet-ef` está definido como herramienta local del repositorio.
 
-## 2. Crear la configuración de Development
+## 2. Configurar Development
 
-Copiar la plantilla:
+Copie la plantilla, que está diseñada para no contener secretos:
 
 ```powershell
-Copy-Item `
-    ".\appsettings.Example.Development.json" `
-    ".\appsettings.Development.json"
+Copy-Item ".\appsettings.Example.Development.json" ".\appsettings.Development.json"
 ```
 
-`appsettings.Development.json` está ignorado por Git.
-
-Configurar la conexión a SQL Server según el ambiente local. Por ejemplo:
+`appsettings.Development.json` está ignorado por Git. Configure una base local dedicada, por ejemplo:
 
 ```json
 {
@@ -44,158 +35,52 @@ Configurar la conexión a SQL Server según el ambiente local. Por ejemplo:
 }
 ```
 
-El nombre de la base de datos puede adaptarse al ambiente local del desarrollador.
-
-## 3. Configurar secretos locales
-
-Los valores sensibles de Development deben permanecer fuera del repositorio.
-
-Configurar una clave JWT local:
+Configure los valores sensibles mediante user-secrets o variables de entorno. Por ejemplo:
 
 ```powershell
-dotnet user-secrets set `
-    "Jwt:Key" `
-    "<CLAVE_LOCAL_SEGURA>" `
-    --project ".\API.csproj"
+dotnet user-secrets set "Jwt:Key" "<CLAVE_LOCAL_SEGURA>" --project ".\API.csproj"
+dotnet user-secrets set "DemoBootstrap:Password" "<PASSWORD_DEMO_LOCAL>" --project ".\API.csproj"
 ```
 
-Configurar la contraseña utilizada para crear los usuarios demo:
+No use credenciales personales ni copie secretos de otros ambientes.
+
+## 3. Aplicar migrations
 
 ```powershell
-dotnet user-secrets set `
-    "DemoBootstrap:Password" `
-    "<PASSWORD_DEMO_LOCAL>" `
-    --project ".\API.csproj"
+dotnet ef database update --project ".\API.csproj" --startup-project ".\API.csproj"
 ```
 
-No reutilizar contraseñas personales ni secretos pertenecientes a otros ambientes.
+La cadena de migrations actual contiene 14 entradas, incluida la restricción de un caso activo por cliente y `Casos.Version` como `rowversion`.
 
-## 4. Aplicar las migrations
+## 4. Crear el baseline demo
+
+Ejecute solo sobre una base recién migrada sin datos operativos:
 
 ```powershell
-dotnet ef database update `
-    --project ".\API.csproj" `
-    --startup-project ".\API.csproj"
+dotnet run --project ".\API.csproj" -- --seed-demo
 ```
 
-La base destino se obtiene desde:
+El bootstrap está limitado a Development y aborta sin modificar datos si detecta información operativa. Crea 10 clientes ficticios, 3 usuarios demo protegidos, 3 asignaciones de rol y 15 casos (5 Pendiente, 5 EnProceso y 5 Cerrado).
 
-```text
-ConnectionStrings:DefaultConnection
-```
-
-Las migrations reconstruyen el esquema actual y los roles estáticos requeridos por la aplicación.
-
-## 5. Inicializar los datos demo
-
-Sobre una base recién migrada y sin datos operativos:
+## 5. Ejecutar y verificar
 
 ```powershell
-dotnet run `
-    --project ".\API.csproj" `
-    -- `
-    --seed-demo
+dotnet run --project ".\API.csproj" --launch-profile http
 ```
 
-El bootstrap inicializa actualmente:
-
-- 10 clientes ficticios
-- 3 usuarios demo
-- 3 relaciones usuario/rol
-- 15 casos del baseline demo
-
-Usuarios demo:
-
-| Usuario | Rol |
-|---|---|
-| admin@legal.cl | Admin |
-| abogado@legal.cl | Abogado |
-| soporte@legal.cl | Soporte |
-
-Los usuarios utilizan la contraseña configurada mediante `DemoBootstrap:Password`.
-
-El bootstrap está limitado a Development y requiere una base sin datos operativos. Si detecta datos existentes, aborta sin modificarlos.
-
-## 6. Ejecutar ControlLex
-
-Después de inicializar la base:
-
-```powershell
-dotnet run --project ".\API.csproj"
-```
-
-Con el perfil HTTP actual:
-
-```text
-http://localhost:5150
-```
-
-El arranque normal no ejecuta el bootstrap.
-
-## 7. Verificar salud
-
-Liveness:
+El perfil HTTP versionado usa `http://localhost:5150`.
 
 ```text
 http://localhost:5150/health/live
-```
-
-Readiness de base de datos:
-
-```text
 http://localhost:5150/health/ready
 ```
 
-En un ambiente correctamente configurado, ambos endpoints deben responder HTTP 200 con estado `Healthy`.
+El endpoint `live` verifica que el proceso responde; `ready` incorpora el health check de `AppDbContext`.
 
 ## Migrations, bootstrap y reset
 
-Son responsabilidades diferentes:
+- **Migrations:** evolucionan el schema y los datos estáticos de roles.
+- **Bootstrap demo:** inicializa una base nueva sin datos operativos.
+- **Demo reset:** restaura el baseline de una demo existente según su flujo específico.
 
-### EF Core migrations
-
-Reconstruyen y evolucionan el esquema de la base de datos.
-
-### Demo bootstrap
-
-Inicializa por primera vez una base Development/demo recién migrada con los datos necesarios para utilizar la aplicación.
-
-### Demo reset
-
-Restaura el baseline de una demo existente después de que haya sido utilizada o modificada.
-
-El bootstrap no reemplaza al reset.
-
-## Validación realizada
-
-La reproducibilidad local fue comprobada sobre una base de datos nueva siguiendo esta secuencia:
-
-```text
-dotnet tool restore
-        ↓
-dotnet ef database update
-        ↓
-12 migrations aplicadas
-        ↓
-3 roles / 0 datos operativos
-        ↓
-dotnet run -- --seed-demo
-        ↓
-10 clientes
-3 usuarios
-3 relaciones usuario/rol
-15 casos
-        ↓
-dotnet run
-        ↓
-health/live = Healthy
-health/ready = Healthy
-        ↓
-autenticación válida
-        ↓
-dashboard y casos accesibles
-```
-
-También se comprobó que una segunda ejecución del bootstrap sobre una base ya poblada aborta sin modificar información.
-
-Esta validación corresponde al ambiente local de Development. No constituye por sí sola una validación de despliegue productivo.
+Son operaciones distintas. El bootstrap no es un reset ni debe usarse sobre datos de negocio.

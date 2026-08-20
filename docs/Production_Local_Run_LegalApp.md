@@ -1,76 +1,37 @@
-# 🔐 Ejecución en Producción Local (Production-like)
+# Ejecución local con configuración Production
 
-Este proyecto está preparado para ejecutarse en **modo Producción local**, replicando el comportamiento real de un entorno productivo (configuración, seguridad, roles y manejo de errores), **sin exponer secretos en el repositorio**.
+Esta guía permite observar el comportamiento de configuración Production en una máquina local. No equivale a validar un proveedor cloud ni sus controles perimetrales.
 
-## 🎯 Objetivo
-Permitir a evaluadores técnicos, reclutadores o equipos levantar la aplicación de forma segura y realista, usando variables de entorno tal como se hace en entornos empresariales.
+## Configuración requerida
 
----
-
-## ⚙️ Variables de Entorno Requeridas
-
-### 1️⃣ Connection String (Base de Datos)
+No versionar secretos. Defina los valores para la sesión de terminal o mediante el proveedor de secretos apropiado para el ambiente:
 
 ```powershell
-$env:ConnectionStrings__DefaultConnection="Server=localhost;Database=LegalAppDb;Trusted_Connection=True;TrustServerCertificate=True;"
+$env:ConnectionStrings__DefaultConnection = "<CONEXION_SQL_LOCAL>"
+$env:Jwt__Key = "<CLAVE_SEGURA_DE_DESARROLLO_LOCAL>"
+$env:ASPNETCORE_ENVIRONMENT = "Production"
 ```
 
----
+La cadena debe apuntar a una base local que el operador haya preparado y autorizado. No use esta guía para modificar una base compartida.
 
-### 2️⃣ JWT Key (Autenticación)
+## Ejecución
 
 ```powershell
-$env:Jwt__Key="UNA_LLAVE_LARGA_Y_SEGURA_DE_AL_MENOS_32_CARACTERES"
+dotnet run --project ".\API.csproj" --no-launch-profile
 ```
 
----
+La URL se controla mediante `ASPNETCORE_URLS` o los valores por defecto del host si no se especifica.
 
-### 3️⃣ Ambiente de Ejecución
+## Comportamiento verificable
 
-```powershell
-$env:ASPNETCORE_ENVIRONMENT="Production"
-```
+En Production, la aplicación:
 
----
+- Emite headers de seguridad, incluida Content Security Policy.
+- Usa HSTS cuando la request se observa como HTTPS.
+- Aplica HTTPS redirection salvo en el flujo configurado para Render.
+- Mantiene autenticación y autorización JWT en backend.
+- Mantiene health checks en `/health/live` y `/health/ready`.
 
-## ▶️ Ejecución de la Aplicación
+La configuración `Swagger:Enabled` controla la disponibilidad de Swagger; fuera de Development, las rutas Swagger se protegen con autenticación y rol Admin cuando están habilitadas.
 
-```powershell
-dotnet run --project API.csproj --no-launch-profile
-```
-
-La aplicación quedará disponible en:
-
-```
-http://localhost:5000/login.html
-```
-
----
-
-## 🔒 Seguridad y Buenas Prácticas Aplicadas
-
-- ❌ No se versionan secretos
-- ✅ Secrets vía variables de entorno
-- ✅ Configuración por ambiente
-- ✅ Roles y permisos validados en backend
-- ✅ UI solo refleja permisos
-- ✅ Preparado para Linux / Cloud
-
----
-
-## 🧪 Credenciales de Demo (Local)
-
-| Usuario        | Rol     |
-|---------------|---------|
-| admin@demo.com| Admin   |
-| roles@demo.com| Abogado |
-| user@demo.com | Soporte |
-
----
-
-## 🏁 Resultado Esperado
-
-- Login funcional en Production local
-- Endpoints protegidos (401 / 403)
-- Swagger deshabilitado en Production
-- Comportamiento idéntico a producción real
+No se incluyen credenciales demo en esta guía. Las credenciales son específicas del ambiente y deben administrarse fuera del repositorio.
