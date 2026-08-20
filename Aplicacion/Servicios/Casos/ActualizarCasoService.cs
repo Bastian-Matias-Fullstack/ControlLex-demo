@@ -18,32 +18,42 @@ namespace Aplicacion.Servicios.Casos
             _clienteRepository = clienteRepository;
         }
 
-        public async Task EjecutarAsync(int id, ActualizarCasoRequest request, bool esAdmin)
+        public async Task EjecutarAsync(
+            int id,
+            ActualizarCasoRequest request,
+            bool esAdmin,
+            string? usuarioActual = null)
         {
             var caso = await _casoRepository.ObtenerPorIdAsync(id);
 
             if (caso is null)
                 throw new NotFoundException($"No existe un caso con id {id}.");
-            if (request.ClienteId <= 0)
-                throw new ArgumentException("Debe seleccionar un cliente válido.");
 
-            request.Titulo = request.Titulo?.Trim() ?? string.Empty;
-            request.Descripcion = request.Descripcion?.Trim() ?? string.Empty;
-            //Regla dura: no editar cerrados
-            // Regla dura: casos cerrados
-            // Excepción: edición administrativa
-            if (caso.Estado == EstadoCaso.Cerrado && !esAdmin)
+            if (caso.EstaCerrado())
                 throw new BusinessConflictException(
                     "No se puede editar un caso cerrado."
                 );
+
+            var versionEsperada = CasoVersionToken.Decodificar(request.Version);
+
+            if (request.ClienteId <= 0)
+                throw new InvalidRequestException("Debe seleccionar un cliente válido.");
+
+            request.Titulo = request.Titulo?.Trim() ?? string.Empty;
+            request.Descripcion = request.Descripcion?.Trim() ?? string.Empty;
+
+            var actor = string.IsNullOrWhiteSpace(usuarioActual)
+                ? "Sistema"
+                : usuarioActual.Trim();
 
             // EN PROCESO → edición limitada (solo no admin)
             if (caso.Estado == EstadoCaso.EnProceso && !esAdmin)
             {
                 caso.Descripcion = request.Descripcion;
                 caso.UpdatedAt = DateTimeOffset.UtcNow;
+                caso.ModifiedBy = actor;
 
-                await _casoRepository.ActualizarAsync(caso);
+                await _casoRepository.ActualizarAsync(caso, versionEsperada);
                 return;
             }
 
@@ -70,12 +80,13 @@ namespace Aplicacion.Servicios.Casos
 
             }
             if (string.IsNullOrWhiteSpace(request.Titulo))
-                throw new ArgumentException("El título del caso es obligatorio.");
+                throw new InvalidRequestException("El título del caso es obligatorio.");
             // Campos editables
             caso.Titulo = request.Titulo;
             caso.Descripcion = request.Descripcion;
             caso.TipoCaso = request.TipoCaso;
             caso.UpdatedAt = DateTimeOffset.UtcNow;
+            caso.ModifiedBy = actor;
 
             // Regla automática de estado
             if (caso.Estado == EstadoCaso.Pendiente)
@@ -84,7 +95,7 @@ namespace Aplicacion.Servicios.Casos
                 caso.FechaCambioEstado = DateTime.UtcNow;
             }
 
-            await _casoRepository.ActualizarAsync(caso);
+            await _casoRepository.ActualizarAsync(caso, versionEsperada);
         }
     }
 }

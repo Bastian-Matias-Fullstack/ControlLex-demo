@@ -1,24 +1,24 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using API.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Aplicacion.Servicios.Auth;
 using Aplicacion.DTO;
-using Infraestructura.Persistencia;
-using Microsoft.EntityFrameworkCore;
+using Aplicacion.Repositorio;
 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly IJwtService _jwtService;
-    private readonly AppDbContext _context;
+    private readonly IUsuarioRepositorio _usuarioRepositorio;
     private readonly IHashService _hashService;
     private readonly ILogger<AuthController> _logger;
     private readonly ILoginLockoutService _lockoutService;
 
-    public AuthController(AppDbContext context, IJwtService jwtService, IHashService hashService, ILogger<AuthController> logger, ILoginLockoutService lockoutService)
+    public AuthController(IUsuarioRepositorio usuarioRepositorio, IJwtService jwtService, IHashService hashService, ILogger<AuthController> logger, ILoginLockoutService lockoutService)
     {
         _jwtService = jwtService;
-        _context = context;
+        _usuarioRepositorio = usuarioRepositorio;
         _hashService = hashService;
         _logger = logger;
         _lockoutService = lockoutService;
@@ -38,17 +38,13 @@ public class AuthController : ControllerBase
             _logger.LogWarning(
                 "LOGIN_LOCKED email={Email} ip={IP} userAgent={UserAgent} lockedUntilUtc={LockedUntilUtc}",
                 email, ip, userAgent, lockedUntil);
-            return StatusCode(StatusCodes.Status429TooManyRequests, new
-            {
-                message = "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
-                lockedUntilUtc = lockedUntil
-            });
+            var problem = ApiError.TooManyRequests(
+                "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
+                HttpContext);
+            problem.Extensions["lockedUntilUtc"] = lockedUntil;
+            return StatusCode(StatusCodes.Status429TooManyRequests, problem);
         }
-        /* aqui usamos EF CORE YA QUE ES CONSULTA SIMPLE */
-        var usuario = await _context.Usuarios
-           .Include(u => u.UsuarioRoles)
-           .ThenInclude(ur => ur.Rol)
-           .FirstOrDefaultAsync(u => u.Email == email);
+        var usuario = await _usuarioRepositorio.ObtenerPorEmailConRolesAsync(email);
         if (usuario == null)
         {
             var failedCount = _lockoutService.RegisterFailure(email, out var lockedAfterFailure);
@@ -58,13 +54,13 @@ public class AuthController : ControllerBase
 
             if (lockedAfterFailure is not null)
             {
-                return StatusCode(StatusCodes.Status429TooManyRequests, new
-                {
-                    message = "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
-                    lockedUntilUtc = lockedAfterFailure
-                });
+                var problem = ApiError.TooManyRequests(
+                    "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
+                    HttpContext);
+                problem.Extensions["lockedUntilUtc"] = lockedAfterFailure;
+                return StatusCode(StatusCodes.Status429TooManyRequests, problem);
             }
-            return Unauthorized(credencialesInvalidas);
+            return Unauthorized(ApiError.Unauthorized(credencialesInvalidas, HttpContext));
         }
         // Verificar contraseña con IHashService
         var esValida = _hashService.Verificar(dto.Password, usuario.PasswordHash);
@@ -78,13 +74,13 @@ public class AuthController : ControllerBase
 
             if (lockedAfterFailure is not null)
             {
-                return StatusCode(StatusCodes.Status429TooManyRequests, new
-                {
-                    message = "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
-                    lockedUntilUtc = lockedAfterFailure
-                });
+                var problem = ApiError.TooManyRequests(
+                    "Cuenta temporalmente bloqueada por múltiples intentos fallidos.",
+                    HttpContext);
+                problem.Extensions["lockedUntilUtc"] = lockedAfterFailure;
+                return StatusCode(StatusCodes.Status429TooManyRequests, problem);
             }
-            return Unauthorized(credencialesInvalidas);
+            return Unauthorized(ApiError.Unauthorized(credencialesInvalidas, HttpContext));
 
         }
         _lockoutService.Reset(email);

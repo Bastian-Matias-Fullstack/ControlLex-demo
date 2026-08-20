@@ -202,11 +202,7 @@ function resolverModuloInicial(roles, moduloSolicitado) {
             history.replaceState(null, "", `#${fallback}`);
 
             // Marcar activo el item del menú del fallback
-            document.querySelectorAll(".sidebar-menu li")
-                .forEach(li => li.classList.remove("active"));
-
-            const fallbackNavId = "nav-" + fallback.replace("mod-", "");
-            document.getElementById(fallbackNavId)?.classList.add("active");
+            actualizarNavegacionActiva(fallback);
 
             //  Ejecutar lógica de carga del módulo fallback
             onModuloCargado(fallback);
@@ -221,17 +217,28 @@ function resolverModuloInicial(roles, moduloSolicitado) {
         history.replaceState(null, "", `#${moduloId}`);
   
     // 2️ Estado activo del menú
-    document.querySelectorAll(".sidebar-menu li")
-        .forEach(li => li.classList.remove("active"));
-
-    const navId = "nav-" + moduloId.replace("mod-", "");
-    document.getElementById(navId)?.classList.add("active");
+    actualizarNavegacionActiva(moduloId);
     // AQUÍ SE ENGANCHA EL PASO 1
     onModuloCargado(moduloId);
         aplicarVisibilidadPorRol(roles);
         if (isMobileViewport()) {
             closeSidebarMobile();
         }
+}
+
+function actualizarNavegacionActiva(moduloId) {
+    const navId = "nav-" + moduloId.replace("mod-", "");
+
+    document.querySelectorAll(".sidebar-nav-button").forEach(button => {
+        const isActive = button.id === navId;
+        button.classList.toggle("active", isActive);
+
+        if (isActive) {
+            button.setAttribute("aria-current", "page");
+        } else {
+            button.removeAttribute("aria-current");
+        }
+    });
 }
 // Demo Context 
 const demoContext = sessionStorage.getItem("demoContext"); 
@@ -261,7 +268,42 @@ function applyDemoContextVisibility(context) {
     }
 }
 
+function cargarModuloOpcional(src, inicializador, nombreModulo) {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = () => {
+        if (typeof window[inicializador] === "function") {
+            window[inicializador]();
+        } else {
+            console.warn(`⚠️ ${inicializador} no está definido.`);
+        }
+    };
+    script.onerror = () => console.error(`❌ Error al cargar ${nombreModulo}`);
+    document.body.appendChild(script);
+}
+
+function cargarModulosPorRol(roles) {
+    if (roles.includes("Admin")) {
+        cargarModuloOpcional("/js/roles.js?v=roles-action-lock-1", "initRolesModule", "roles.js");
+    }
+
+    if (roles.includes("Admin") || roles.includes("Soporte")) {
+        cargarModuloOpcional("/js/Usuarios.js?v=usuarios-action-lock-1", "initUsuariosModule", "usuarios.js");
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        document.getElementById("bg-video-dashboard")?.pause();
+    }
+
+    document.querySelector(".sidebar-toggle")?.addEventListener("click", toggleSidebar);
+    document.getElementById("nav-dashboard")?.addEventListener("click", () => navigate("mod-dashboard"));
+    document.getElementById("nav-casos")?.addEventListener("click", () => navigate("mod-casos"));
+    document.getElementById("nav-usuarios")?.addEventListener("click", () => navigate("mod-usuarios"));
+    document.getElementById("nav-roles")?.addEventListener("click", () => navigate("mod-roles"));
+    document.getElementById("sidebarOverlay")?.addEventListener("click", closeSidebarMobile);
 
     const token = localStorage.getItem("jwt_token");
     if (!token) {
@@ -286,6 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     configurarSidebarPorRoles(roles);
     aplicarVisibilidadPorRol(roles);
+    cargarModulosPorRol(roles);
 
     const hashModulo = (window.location.hash || "").replace("#", "").trim();
     const moduloSolicitado = hashModulo || null;
@@ -414,6 +457,7 @@ function setBotonCargando(btn, cargando, htmlCargando = null) {
     window.addEventListener("resize", () => {
         renderSaludoUsuario(usuario);
     });
+    recargarCasos = cargarCasosDesdeBackend;
     cargarCasosDesdeBackend();
     initPdfExport();
 
@@ -536,44 +580,40 @@ async function cargarCasosDesdeBackend() {
         tbody.innerHTML = "";
 
         lista.forEach(caso => {
-            const estadoBadge = getEstadoBadge(caso.estado);
-            const tipoIcono = getTipoIcono(caso.tipoCaso);
-            const claseFila = `tr-${caso.estado.toLowerCase()}`;
+            const estado = normalizarEstado(caso.estado);
+            const tr = document.createElement("tr");
+            tr.classList.add(`tr-${["pendiente", "enproceso", "cerrado"].includes(estado) ? estado : "desconocido"}`);
 
-            //validacion para mostrar mensaje de cerrar solo si no esta cerrado
-            const puedeCerrar = caso.estado.toLowerCase() !== "cerrado";
-            const puedeEditar = caso.estado.toLowerCase() !== "cerrado";
-            const puedeEliminar = caso.estado.toLowerCase() !== "cerrado";
-            const row = `
-            <tr class="${claseFila}">
-                <td>${caso.id}</td>
-                <td>${caso.titulo}</td>
-                <td>${estadoBadge}</td>
-                <td>${tipoIcono}${caso.tipoCaso}</td>
-                <td>${caso.nombreCliente || 'No Client'}</td>
-                <td>${new Date(caso.fechaCreacion).toLocaleDateString()}</td>
-                <td class="text-nowrap">
-                   <button class="btn btn-sm btn-outline-light me-1 btn-ver" data-id="${caso.id}" title="Ver">
-                   <i class="bi bi-eye-fill"></i>
-                    </button>
-                      ${puedeEditar ? `
-              <button class="btn btn-sm btn-outline-warning btn-editar-caso" data-id="${caso.id}" data-estado="${caso.estado}" title="Editar">
-                 <i class="bi bi-pencil-fill"></i>
-              </button>` : ""}
+            tr.append(
+                crearCeldaCaso(caso.id),
+                crearCeldaCaso(caso.titulo)
+            );
 
-                                  ${puedeEliminar ? `
-                   <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="${caso.id}" title="Eliminar">
-                       <i class="bi bi-trash-fill"></i>
-                   </button>` : ""}
+            const estadoCell = crearCeldaCaso();
+            estadoCell.appendChild(crearEstadoBadge(caso.estado));
+            tr.appendChild(estadoCell);
 
-                      ${puedeCerrar ? `
-                     <button class="btn btn-sm btn-outline-secondary btn-cerrar" data-id="${caso.id}" title="Cerrar">
-                       <i class="bi bi-lock-fill"></i>
-                     </button>` : ""}
-                </td>
-            </tr>
-        `;
-            tbody.innerHTML += row;
+            const tipoCell = crearCeldaCaso();
+            tipoCell.append(crearIconoTipo(caso.tipoCaso), textoSeguro(caso.tipoCaso));
+            tr.append(
+                tipoCell,
+                crearCeldaCaso(caso.nombreCliente || "No Client"),
+                crearCeldaCaso(new Date(caso.fechaCreacion).toLocaleDateString())
+            );
+
+            const acciones = crearCeldaCaso(null, "text-nowrap");
+            acciones.appendChild(crearBotonCaso("btn btn-sm btn-outline-light me-1 btn-ver", caso.id, caso.estado, caso.version, "Ver", "bi-eye-fill"));
+
+            if (estado !== "cerrado") {
+                acciones.append(
+                    crearBotonCaso("btn btn-sm btn-outline-warning btn-editar-caso", caso.id, caso.estado, caso.version, "Editar", "bi-pencil-fill"),
+                    crearBotonCaso("btn btn-sm btn-outline-danger btn-eliminar", caso.id, caso.estado, caso.version, "Eliminar", "bi-trash-fill"),
+                    crearBotonCaso("btn btn-sm btn-outline-secondary btn-cerrar", caso.id, caso.estado, caso.version, "Cerrar", "bi-lock-fill")
+                );
+            }
+
+            tr.appendChild(acciones);
+            tbody.appendChild(tr);
         });
 
         /** Limpia y vuelve a renderizar la tabla de casos con animación suave (opacity).
@@ -591,69 +631,54 @@ async function cargarCasosDesdeBackend() {
         cardsContainer.innerHTML = "";
 
         lista.forEach(caso => {
-            const estadoBadge = getEstadoBadge(caso.estado);
-            const tipoIcono = getTipoIcono(caso.tipoCaso);
+            const estado = normalizarEstado(caso.estado);
+            const card = document.createElement("article");
+            card.className = "caso-card";
+            card.dataset.id = textoSeguro(caso.id);
+            card.dataset.estado = textoSeguro(caso.estado);
 
-            const puedeCerrar = caso.estado.toLowerCase() !== "cerrado";
-            const puedeEditar = caso.estado.toLowerCase() !== "cerrado";
-            const puedeEliminar = caso.estado.toLowerCase() !== "cerrado";
+            const header = document.createElement("div");
+            header.className = "caso-card-header";
+            const titleWrap = document.createElement("div");
+            titleWrap.className = "caso-card-title-wrap";
+            const id = document.createElement("span");
+            id.className = "caso-card-id";
+            id.textContent = `#${textoSeguro(caso.id)}`;
+            const titulo = document.createElement("h6");
+            titulo.className = "caso-card-title mb-1";
+            titulo.textContent = textoSeguro(caso.titulo);
+            titleWrap.append(id, titulo);
 
-            const card = `
-            <article class="caso-card" data-id="${caso.id}" data-estado="${caso.estado}">
-                <div class="caso-card-header">
-                    <div class="caso-card-title-wrap">
-                        <span class="caso-card-id">#${caso.id}</span>
-                        <h6 class="caso-card-title mb-1">${caso.titulo}</h6>
-                    </div>
-                    <div class="caso-card-badge">
-                        ${estadoBadge}
-                    </div>
-                </div>
+            const badgeWrap = document.createElement("div");
+            badgeWrap.className = "caso-card-badge";
+            badgeWrap.appendChild(crearEstadoBadge(caso.estado));
+            header.append(titleWrap, badgeWrap);
 
-                <div class="caso-card-body">
-                    <div class="caso-card-row">
-                        <span class="caso-card-label">Tipo</span>
-                        <span class="caso-card-value">${tipoIcono}${caso.tipoCaso}</span>
-                    </div>
+            const body = document.createElement("div");
+            body.className = "caso-card-body";
+            const tipoValue = document.createElement("span");
+            tipoValue.className = "caso-card-value";
+            tipoValue.append(crearIconoTipo(caso.tipoCaso), textoSeguro(caso.tipoCaso));
+            body.append(
+                crearFilaCardCaso("Tipo", tipoValue),
+                crearFilaCardCaso("Cliente", caso.nombreCliente || "No Client"),
+                crearFilaCardCaso("Creación", new Date(caso.fechaCreacion).toLocaleDateString())
+            );
 
-                    <div class="caso-card-row">
-                        <span class="caso-card-label">Cliente</span>
-                        <span class="caso-card-value">${caso.nombreCliente || "No Client"}</span>
-                    </div>
+            const acciones = document.createElement("div");
+            acciones.className = "caso-card-actions";
+            acciones.appendChild(crearBotonCaso("btn btn-sm btn-outline-light me-1 btn-ver", caso.id, caso.estado, caso.version, "Ver", "bi-eye-fill"));
 
-                    <div class="caso-card-row">
-                        <span class="caso-card-label">Creación</span>
-                        <span class="caso-card-value">${new Date(caso.fechaCreacion).toLocaleDateString()}</span>
-                    </div>
-                </div>
+            if (estado !== "cerrado") {
+                acciones.append(
+                    crearBotonCaso("btn btn-sm btn-outline-warning btn-editar-caso", caso.id, caso.estado, caso.version, "Editar", "bi-pencil-fill"),
+                    crearBotonCaso("btn btn-sm btn-outline-danger btn-eliminar", caso.id, caso.estado, caso.version, "Eliminar", "bi-trash-fill"),
+                    crearBotonCaso("btn btn-sm btn-outline-secondary btn-cerrar", caso.id, caso.estado, caso.version, "Cerrar", "bi-lock-fill")
+                );
+            }
 
-                <div class="caso-card-actions">
-                    <button class="btn btn-sm btn-outline-light me-1 btn-ver" data-id="${caso.id}" title="Ver">
-                        <i class="bi bi-eye-fill"></i>
-                    </button>
-
-                    ${puedeEditar ? `
-                        <button class="btn btn-sm btn-outline-warning btn-editar-caso" data-id="${caso.id}" data-estado="${caso.estado}" title="Editar">
-                            <i class="bi bi-pencil-fill"></i>
-                        </button>
-                    ` : ""}
-
-                    ${puedeEliminar ? `
-                        <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="${caso.id}" data-estado="${caso.estado}" title="Eliminar">
-                            <i class="bi bi-trash-fill"></i>
-                        </button>
-                    ` : ""}
-
-                    ${puedeCerrar ? `
-                        <button class="btn btn-sm btn-outline-secondary btn-cerrar" data-id="${caso.id}" data-estado="${caso.estado}" title="Cerrar">
-                            <i class="bi bi-lock-fill"></i>
-                        </button>
-                    ` : ""}
-                </div>
-            </article>
-        `;
-
-            cardsContainer.innerHTML += card;
+            card.append(header, body, acciones);
+            cardsContainer.appendChild(card);
         });
     }
     function renderizarPaginacion(paginaActual, totalPaginas) {
@@ -665,7 +690,12 @@ async function cargarCasosDesdeBackend() {
         const crearItem = (label, page, disabled = false, active = false) => {
             const li = document.createElement("li");
             li.className = `page-item ${disabled ? "disabled" : ""} ${active ? "active" : ""}`;
-            li.innerHTML = `<a class="page-link" href="#" data-page="${page}">${label}</a>`;
+            const link = document.createElement("a");
+            link.className = "page-link";
+            link.href = "#";
+            link.dataset.page = textoSeguro(page);
+            link.textContent = textoSeguro(label);
+            li.appendChild(link);
             return li;
         };
 
@@ -712,12 +742,13 @@ async function cargarCasosDesdeBackend() {
         const pendientes = Number(metricas.casos.pendientes ?? 0);
         const resueltos = Number(metricas.casos.cerrados ?? 0);
         const enProceso = Number(metricas.casos.enProceso ?? 0);
+        const casosActivos = total - resueltos;
 
         const tasaCierre = total > 0
             ? `${Math.round((resueltos / total) * 100)}%`
             : "0%";
 
-        if (totalCasosEl) totalCasosEl.textContent = total;
+        if (totalCasosEl) totalCasosEl.textContent = casosActivos;
         if (casosPendientesEl) casosPendientesEl.textContent = pendientes;
         if (casosResueltosEl) casosResueltosEl.textContent = resueltos;
         if (tasaCierreEl) tasaCierreEl.textContent = tasaCierre;
@@ -932,33 +963,95 @@ async function mostrarDetalleCaso(id, btnOrigen = null) {
     /* Trae los datos de un caso por ID.
 Rellena un modal Bootstrap para mostrar info detallada */
 
-    function getEstadoBadge(estado) {
-        switch (estado.toLowerCase()) {
-            case "pendiente":
-                return '<span class="badge estado-pendiente">Pendiente</span>';
-            case "enproceso":
-                return '<span class="badge estado-enproceso">En Proceso</span>';
-            case "cerrado":
-                return '<span class="badge estado-cerrado">Cerrado</span>';
-            default:
-                return '<span class="badge bg-secondary badge-estado">' + estado + '</span>';
-        }
+    function textoSeguro(valor, fallback = "") {
+        return valor === null || valor === undefined ? fallback : String(valor);
     }
 
-    /*Devuelven HTML para mostrar el estado y tipo con íconos y colores personalizados. */
-    function getTipoIcono(tipo) {
-        switch (tipo.toLowerCase()) {
-            case "laboral":
-                return '<i class="bi bi-people text-primary me-2"></i>';
-            case "familia":
-                return '<i class="bi bi-house-heart text-success me-2"></i>';
-            case "civil":
-                return '<i class="bi bi-bank text-info me-2"></i>';
-            case "penal":
-                return '<i class="bi bi-shield-exclamation text-danger me-2"></i>';
+    function normalizarEstado(estado) {
+        return textoSeguro(estado).toLowerCase();
+    }
+
+    function crearCeldaCaso(valor = null, clase = "") {
+        const celda = document.createElement("td");
+        if (clase) celda.className = clase;
+        if (valor !== null) celda.textContent = textoSeguro(valor);
+        return celda;
+    }
+
+    function crearEstadoBadge(estado) {
+        const badge = document.createElement("span");
+        const estadoNormalizado = normalizarEstado(estado);
+
+        badge.classList.add("badge");
+        switch (estadoNormalizado) {
+            case "pendiente":
+                badge.classList.add("estado-pendiente");
+                badge.textContent = "Pendiente";
+                break;
+            case "enproceso":
+                badge.classList.add("estado-enproceso");
+                badge.textContent = "En Proceso";
+                break;
+            case "cerrado":
+                badge.classList.add("estado-cerrado");
+                badge.textContent = "Cerrado";
+                break;
             default:
-                return '<i class="bi bi-folder2-open text-secondary me-2"></i>';
+                badge.classList.add("bg-secondary", "badge-estado");
+                badge.textContent = textoSeguro(estado);
+                break;
         }
+
+        return badge;
+    }
+
+    function crearIconoTipo(tipo) {
+        const icono = document.createElement("i");
+        const tipoNormalizado = textoSeguro(tipo).toLowerCase();
+        const clasesPorTipo = {
+            laboral: "bi-people text-primary me-2",
+            familia: "bi-house-heart text-success me-2",
+            civil: "bi-bank text-info me-2",
+            penal: "bi-shield-exclamation text-danger me-2"
+        };
+
+        icono.className = `bi ${clasesPorTipo[tipoNormalizado] || "bi-folder2-open text-secondary me-2"}`;
+        return icono;
+    }
+
+    function crearBotonCaso(clases, id, estado, version, titulo, iconoClase) {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = clases;
+        boton.dataset.id = textoSeguro(id);
+        boton.dataset.estado = textoSeguro(estado);
+        boton.dataset.version = textoSeguro(version);
+        boton.title = titulo;
+
+        const icono = document.createElement("i");
+        icono.className = `bi ${iconoClase}`;
+        boton.appendChild(icono);
+        return boton;
+    }
+
+    function crearFilaCardCaso(etiqueta, valor) {
+        const fila = document.createElement("div");
+        fila.className = "caso-card-row";
+        const label = document.createElement("span");
+        label.className = "caso-card-label";
+        label.textContent = etiqueta;
+
+        const contenido = valor instanceof Element
+            ? valor
+            : (() => {
+                const span = document.createElement("span");
+                span.className = "caso-card-value";
+                span.textContent = textoSeguro(valor);
+                return span;
+            })();
+
+        fila.append(label, contenido);
+        return fila;
     }
 
     // Función reutilizable para mostrar errores claros al usuario
@@ -972,12 +1065,14 @@ Rellena un modal Bootstrap para mostrar info detallada */
                 title: 'Error',
                 text: mensaje,
             });
+            return mensaje;
         } catch {
             Swal.fire({
                 icon: 'error',
                 title: 'Error inesperado',
                 text: mensajePorDefecto,
             });
+            return mensajePorDefecto;
         }
     }
 //  VALIDACIÓN INLINE (helpers)
@@ -1171,6 +1266,7 @@ if (e.target.closest(".btn-editar-caso, .btn-outline-warning")) {
         }
 
         document.getElementById("form-id").value = data.id;
+        document.getElementById("form-version").value = data.version ?? "";
         document.getElementById("form-titulo").value = data.titulo ?? "";
         document.getElementById("form-descripcion").value = data.descripcion ?? "";
 
@@ -1316,6 +1412,7 @@ if (e.target.closest(".btn-cerrar")) {
 
     const btn = e.target.closest(".btn-cerrar");
     const id = btn.dataset.id;
+    const version = btn.dataset.version;
 
     const fila = btn.closest("tr");
     const card = btn.closest(".caso-card");
@@ -1328,6 +1425,16 @@ if (e.target.closest(".btn-cerrar")) {
     ).trim().toLowerCase();
 
     if (!id) return;
+
+    if (!version) {
+        await cargarCasosDesdeBackend();
+        Swal.fire({
+            icon: "info",
+            title: "Datos actualizados",
+            text: "Recarga el caso e intenta cerrarlo nuevamente."
+        });
+        return;
+    }
 
     const claveAccion = `cerrar:${id}`;
     if (!iniciarAccionCaso(claveAccion)) return;
@@ -1377,7 +1484,7 @@ if (e.target.closest(".btn-cerrar")) {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ motivoCierre: motivo })
+            body: JSON.stringify({ motivoCierre: motivo, version })
         });
 
         if (!res.ok) {
@@ -1473,6 +1580,7 @@ document.getElementById("btnNuevoCaso")?.addEventListener("click", async () => {
         });
 
         document.getElementById("form-id").value = "";
+        document.getElementById("form-version").value = "";
 
         const clienteSelect = document.getElementById("form-cliente");
         clienteSelect.disabled = false;
@@ -1534,6 +1642,7 @@ document.getElementById("btnNuevoCaso")?.addEventListener("click", async () => {
 
 
         const id = document.getElementById("form-id").value.trim();
+        const version = document.getElementById("form-version").value.trim();
         const titulo = document.getElementById("form-titulo").value.trim();
         const descripcion = document.getElementById("form-descripcion").value.trim();
         const tipoCaso = document.getElementById("form-tipo").value;
@@ -1544,6 +1653,8 @@ document.getElementById("btnNuevoCaso")?.addEventListener("click", async () => {
         );  
 
        
+        const esNuevo = id === "";
+
         const caso = {
             Titulo: titulo,
             Descripcion: descripcion,
@@ -1551,7 +1662,9 @@ document.getElementById("btnNuevoCaso")?.addEventListener("click", async () => {
             ClienteId: clienteId
         };
 
-        const esNuevo = id === "";
+        if (!esNuevo) {
+            caso.Version = version;
+        }
 
         const url = esNuevo ? apiUrl : `${apiUrl}/${id}`;
         const metodo = esNuevo ? "POST" : "PUT";
@@ -1656,12 +1769,12 @@ function mostrarModulo(id) {
     }
 }
 // LOADER POR MÓDULO (PASO 1)
+let recargarCasos = null;
+
 function onModuloCargado(moduloId) {
   switch (moduloId) {
     case "mod-casos":
-      if (typeof cargarCasosDesdeBackend === "function") {
-        cargarCasosDesdeBackend();
-      }
+      recargarCasos?.();
       break;
 
     case "mod-usuarios":
@@ -1721,6 +1834,12 @@ window.addEventListener("resize", () => {
 async function cargarClientes() {
     const select = document.getElementById("form-cliente");
     if (!select) return;
+
+    const token = localStorage.getItem("jwt_token");
+    if (!token) {
+        clearSessionAndRedirect("missing-token-clientes");
+        return;
+    }
 
     // La función se vuelve autosuficiente:
     // siempre deja el select limpio antes de cargar opciones nuevas.

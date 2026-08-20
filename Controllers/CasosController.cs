@@ -1,4 +1,5 @@
 ﻿using Aplicacion.Casos;
+using API.Helpers;
 using Aplicacion.DTO;
 using Aplicacion.DTOs;
 using Aplicacion.Excepciones;
@@ -54,28 +55,10 @@ namespace API.Controllers
         [Authorize]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ObtenerCasos([FromQuery] FiltroCasosRequest filtro)
         {
-            if (filtro.Pagina < 1)
-                filtro.Pagina = 1;
-
-            if (filtro.Tamanio < 1)
-                filtro.Tamanio = 10;
-
-            // Normalización suave de strings
-            filtro.Buscar = string.IsNullOrWhiteSpace(filtro.Buscar)
-                ? null
-                : filtro.Buscar.Trim();
-
-            filtro.Estado = string.IsNullOrWhiteSpace(filtro.Estado)
-                ? null
-                : filtro.Estado.Trim();
-
-            filtro.Orden = string.IsNullOrWhiteSpace(filtro.Orden)
-                ? null
-                : filtro.Orden.Trim();
-
             var resultado = await _listarCasosService.EjecutarAsync(filtro);
 
             if (resultado == null || resultado.Items == null || !resultado.Items.Any())
@@ -105,13 +88,9 @@ namespace API.Controllers
 
             if (caso == null)
             {
-                return NotFound(new ProblemDetails
-                {
-                    Status = 404,
-                    Title = "Caso no encontrado",
-                    Detail = $"No se encontró un caso con ID {id}.",
-                    Instance = HttpContext.Request.Path
-                });
+                return NotFound(ApiError.NotFound(
+                    $"No se encontró un caso con ID {id}.",
+                    HttpContext));
             }
 
             var dto = new CasoDto
@@ -124,7 +103,8 @@ namespace API.Controllers
                 NombreCliente = caso.Cliente?.Nombre,
                 TipoCaso = caso.TipoCaso,
                 Descripcion = caso.Descripcion,
-                MotivoCierre = caso.MotivoCierre
+                MotivoCierre = caso.MotivoCierre,
+                Version = CasoVersionToken.Codificar(caso.Version)
             };
 
             return Ok(dto);
@@ -136,7 +116,9 @@ namespace API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CrearCaso([FromBody] CrearCasoRequest request)
         {
-            var nuevoCaso = await _crearCasoService.EjecutarAsync(request);
+            var nuevoCaso = await _crearCasoService.EjecutarAsync(
+                request,
+                User.Identity?.Name);
             return CreatedAtAction(nameof(ObtenerCasoPorId), new { id = nuevoCaso.Id }, nuevoCaso.Id);
         }
 
@@ -150,7 +132,10 @@ namespace API.Controllers
             int id,
             [FromBody] CerrarCasoRequest request)
         {
-            await _cerrarCasosService.EjecutarAsync(id, request);
+            await _cerrarCasosService.EjecutarAsync(
+                id,
+                request,
+                User.Identity?.Name);
             return NoContent();
         }
 
@@ -165,7 +150,11 @@ namespace API.Controllers
             [FromBody] ActualizarCasoRequest request)
         {
             var esAdmin = User.IsInRole("Admin");
-            await _actualizarCasoService.EjecutarAsync(id, request, esAdmin);
+            await _actualizarCasoService.EjecutarAsync(
+                id,
+                request,
+                esAdmin,
+                User.Identity?.Name);
             return NoContent();
         }
 
@@ -199,7 +188,8 @@ namespace API.Controllers
                 Estado = c.Estado,
                 TipoCaso =c.TipoCaso,
                 FechaCreacion = c.FechaCreacion,
-                NombreCliente = c.NombreCliente
+                NombreCliente = c.NombreCliente,
+                Version = CasoVersionToken.Codificar(c.Version)
             }));
                
             }

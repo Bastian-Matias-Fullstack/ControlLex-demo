@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-publish-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+
+      - name: Restore
+        run: dotnet restore SoftwareJuridicoEscalableRobusto.sln
+
+      - name: Build
+        run: dotnet build SoftwareJuridicoEscalableRobusto.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test SoftwareJuridicoEscalableRobusto.sln --configuration Release --no-build
+
+      - name: Publish
+        run: dotnet publish API.csproj --configuration Release --no-restore -m:1 --output "$RUNNER_TEMP/controllex-publish"
+
+      - name: Inspect publish hygiene
+        shell: bash
+        run: |
+          publish_dir="$RUNNER_TEMP/controllex-publish"
+          test -f "$publish_dir/API.dll"
+          test -f "$publish_dir/API.runtimeconfig.json"
+          test -d "$publish_dir/wwwroot"
+          if find "$publish_dir" -type f \( -name 'appsettings.*.json' -o -name '.env' -o -name '.env.*' -o -name '*.secret.json' \) -print -quit | grep -q .; then
+            echo "Forbidden environment-specific configuration found in publish output."
+            exit 1
+          fi
+
+      - name: Build Docker image
+        run: docker build --file Dockerfile --tag controllex-ci:local .

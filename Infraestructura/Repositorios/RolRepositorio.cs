@@ -30,5 +30,10 @@ namespace Infraestructura.Repositorios
             // Si no encuentra ninguno, devuelve null (por eso es Rol?)
             return await _context.Roles.FirstOrDefaultAsync(r => r.Nombre == nombre);
         }
+
+        public async Task<List<Rol>> ObtenerTodosAsync()
+        {
+            return await _context.Roles.ToListAsync();
+        }
     }
 }

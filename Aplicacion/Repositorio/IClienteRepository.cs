@@ -7,5 +7,6 @@ namespace Aplicacion.Repositorio
         Task<Cliente?> ObtenerPorNombreAsync(string nombre);
         Task CrearAsync(Cliente cliente);
         Task<Cliente?> ObtenerPorIdAsync(int id);
+        Task<List<Cliente>> ObtenerTodosAsync();
     }
 }

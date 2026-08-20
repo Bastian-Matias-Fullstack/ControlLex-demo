@@ -20,6 +20,8 @@ namespace Aplicacion.DTOs
 
         [Range(1, int.MaxValue)]
         public int ClienteId { get; set; }   // 🔥 CLAVE
+        [Required]
+        public string Version { get; set; } = string.Empty;
         //public EstadoCaso Estado { get; set; } // 👈 Agregado para mejora 
     }
 }

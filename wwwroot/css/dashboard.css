@@ -697,40 +697,51 @@ input.form-control, textarea.form-control, select.form-select {
     visibility: visible;
 }
 
+.sidebar-toggle:focus-visible,
+.sidebar-nav-button:focus-visible {
+    outline: 3px solid #9ed3ff;
+    outline-offset: -3px;
+}
+
 .sidebar-menu {
     list-style: none;
     padding: 0;
     margin-top: 16px;
 }
 
-    .sidebar-menu li {
+    .sidebar-menu .sidebar-nav-button {
         display: flex;
         align-items: center;
         justify-content: flex-start;
+        width: 100%;
         gap: 0;
         padding: 14px 16px;
         min-height: 52px;
+        border: 0;
+        background: transparent;
         cursor: pointer;
         color: #ccc;
+        font: inherit;
+        text-align: left;
         transition: background 0.2s ease, color 0.2s ease;
         white-space: nowrap;
     }
 
-        .sidebar-menu li:hover {
+        .sidebar-menu .sidebar-nav-button:hover {
             background: rgba(255, 255, 255, 0.08);
             color: #fff;
         }
 
-        .sidebar-menu li.active {
+        .sidebar-menu .sidebar-nav-button.active {
             background: rgba(255, 255, 255, 0.12);
             color: #fff;
         }
-            .sidebar-menu li.active i,
-            .sidebar-menu li:hover i {
+            .sidebar-menu .sidebar-nav-button.active i,
+            .sidebar-menu .sidebar-nav-button:hover i {
                 color: inherit;
             }
 
-        .sidebar-menu li i {
+        .sidebar-menu .sidebar-nav-button i {
             width: 24px;
             min-width: 24px;
             height: 24px;
@@ -744,7 +755,7 @@ input.form-control, textarea.form-control, select.form-select {
             visibility: visible;
             margin-right: 12px;
         }
-        .sidebar-menu li span {
+        .sidebar-menu .sidebar-nav-button span {
             display: inline-block;
             line-height: 1.2;
             font-size: 0.98rem;
@@ -769,7 +780,7 @@ input.form-control, textarea.form-control, select.form-select {
     display: block !important;
 }
 
-    .sidebar.collapsed:not(.mobile-open) .sidebar-menu li {
+    .sidebar.collapsed:not(.mobile-open) .sidebar-menu .sidebar-nav-button {
         display: flex !important;
         align-items: center;
         justify-content: center;
@@ -779,7 +790,7 @@ input.form-control, textarea.form-control, select.form-select {
         min-height: 52px;
     }
 
-        .sidebar.collapsed:not(.mobile-open) .sidebar-menu li i {
+        .sidebar.collapsed:not(.mobile-open) .sidebar-menu .sidebar-nav-button i {
             display: inline-flex !important;
             align-items: center;
             justify-content: center;
@@ -793,7 +804,7 @@ input.form-control, textarea.form-control, select.form-select {
             margin-right: 0 !important;
         }
 
-        .sidebar.collapsed:not(.mobile-open) .sidebar-menu li span {
+        .sidebar.collapsed:not(.mobile-open) .sidebar-menu .sidebar-nav-button span {
             display: none;
         }
 
@@ -837,34 +848,34 @@ input.form-control, textarea.form-control, select.form-select {
             transform: none;
         }
 
-        .sidebar .sidebar-menu li {
+        .sidebar .sidebar-menu .sidebar-nav-button {
             justify-content: center;
             padding-left: 0;
             padding-right: 0;
             gap: 0;
         }
 
-            .sidebar .sidebar-menu li i {
+            .sidebar .sidebar-menu .sidebar-nav-button i {
                 min-width: 24px;
                 width: 24px;
                 text-align: center;
             }
 
-        .sidebar.collapsed:not(.mobile-open) .sidebar-menu li span {
+        .sidebar.collapsed:not(.mobile-open) .sidebar-menu .sidebar-nav-button span {
             display: none;
         }
 
-        .sidebar.mobile-open .sidebar-menu li {
+        .sidebar.mobile-open .sidebar-menu .sidebar-nav-button {
             justify-content: flex-start;
             padding-left: 16px;
             padding-right: 16px;
             gap: 0;
         }
-            .sidebar.mobile-open .sidebar-menu li i {
+            .sidebar.mobile-open .sidebar-menu .sidebar-nav-button i {
                 margin-right: 14px;
             }
 
-            .sidebar.mobile-open .sidebar-menu li span {
+            .sidebar.mobile-open .sidebar-menu .sidebar-nav-button span {
                 display: inline !important;
                 white-space: nowrap;
             }
@@ -895,34 +906,34 @@ input.form-control, textarea.form-control, select.form-select {
             transform: none;
         }
 
-        .sidebar .sidebar-menu li {
+        .sidebar .sidebar-menu .sidebar-nav-button {
             justify-content: center;
             padding-left: 0;
             padding-right: 0;
             gap: 0;
         }
 
-            .sidebar .sidebar-menu li i {
+            .sidebar .sidebar-menu .sidebar-nav-button i {
                 min-width: 24px;
                 width: 24px;
                 text-align: center;
             }
 
-        .sidebar.collapsed:not(.mobile-open) .sidebar-menu li span {
+        .sidebar.collapsed:not(.mobile-open) .sidebar-menu .sidebar-nav-button span {
             display: none;
         }
 
-        .sidebar.mobile-open .sidebar-menu li {
+        .sidebar.mobile-open .sidebar-menu .sidebar-nav-button {
             justify-content: flex-start;
             padding-left: 16px;
             padding-right: 16px;
             gap: 0;
         }
-            .sidebar.mobile-open .sidebar-menu li i {
+            .sidebar.mobile-open .sidebar-menu .sidebar-nav-button i {
                 margin-right: 14px;
             }
 
-            .sidebar.mobile-open .sidebar-menu li span {
+            .sidebar.mobile-open .sidebar-menu .sidebar-nav-button span {
                 display: inline !important;
                 white-space: nowrap;
             }
@@ -1092,16 +1103,16 @@ input.form-control, textarea.form-control, select.form-select {
 }
 
 .password-input {
-    padding-right: 3.2rem;
+    padding-right: 3.5rem;
 }
 
 .toggle-password-btn {
     position: absolute;
     top: 50%;
-    right: 0.85rem;
+    right: 0.5rem;
     transform: translateY(-50%);
-    width: 2rem;
-    height: 2rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border: none;
     background: transparent;
     color: rgba(255, 255, 255, 0.78);
@@ -3027,5 +3038,16 @@ body.modal-open .swal2-toast {
 
     #mod-dashboard .summary-card {
         min-height: auto !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
     }
 }

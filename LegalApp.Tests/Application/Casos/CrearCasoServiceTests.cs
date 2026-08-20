@@ -1,29 +1,26 @@
 ﻿using Aplicacion.Casos;
 using Aplicacion.DTO;
+using Aplicacion.Excepciones;
 using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
 using Dominio.Entidades;
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using Moq;
 public class CrearCasoServiceTests
 {
     private readonly Mock<ICasoRepository> _casoRepoMock;
     private readonly Mock<IClienteRepository> _clienteRepoMock;
-    private readonly Mock<ILogger<CrearCasoService>> _loggerMock;
     private readonly FormateadorNombreService _formateador;
     private readonly CrearCasoService _service;
     public CrearCasoServiceTests()
     {
         _casoRepoMock = new Mock<ICasoRepository>();
         _clienteRepoMock = new Mock<IClienteRepository>();
-        _loggerMock = new Mock<ILogger<CrearCasoService>>();
         _formateador = new FormateadorNombreService();
         _service = new CrearCasoService(
             _casoRepoMock.Object,
             _clienteRepoMock.Object,
-            _formateador,
-            _loggerMock.Object
+            _formateador
         );
     }
     [Fact]
@@ -72,7 +69,7 @@ public class CrearCasoServiceTests
         Func<Task> act = async () => await _service.EjecutarAsync(request);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<InvalidRequestException>();
 
         _clienteRepoMock.Verify(r => r.ObtenerPorIdAsync(It.IsAny<int>()), Times.Never);
         _casoRepoMock.Verify(r => r.CrearAsync(It.IsAny<Caso>()), Times.Never);
@@ -95,7 +92,7 @@ public class CrearCasoServiceTests
         Func<Task> act = async () => await _service.EjecutarAsync(request);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<InvalidRequestException>();
 
         _clienteRepoMock.Verify(r => r.ObtenerPorIdAsync(It.IsAny<int>()), Times.Never);
         _casoRepoMock.Verify(r => r.CrearAsync(It.IsAny<Caso>()), Times.Never);
@@ -120,9 +117,36 @@ public class CrearCasoServiceTests
         Func<Task> act = async () => await _service.EjecutarAsync(request);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        await act.Should().ThrowAsync<NotFoundException>();
 
         _casoRepoMock.Verify(r => r.CrearAsync(It.IsAny<Caso>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_ClienteConCasoActivo_LanzaBusinessConflictException()
+    {
+        var cliente = new Cliente { Id = 1, Nombre = "Cliente" };
+        var request = new CrearCasoRequest
+        {
+            Titulo = "Caso válido",
+            Descripcion = "Descripción",
+            ClienteId = cliente.Id,
+            TipoCaso = TipoCaso.Civil
+        };
+
+        _clienteRepoMock
+            .Setup(r => r.ObtenerPorIdAsync(cliente.Id))
+            .ReturnsAsync(cliente);
+        _casoRepoMock
+            .Setup(r => r.ExisteCasoActivoParaClienteAsync(cliente.Id, 0))
+            .ReturnsAsync(true);
+
+        Func<Task> act = async () => await _service.EjecutarAsync(request);
+
+        await act.Should().ThrowAsync<BusinessConflictException>();
+        _casoRepoMock.Verify(
+            r => r.CrearAsync(It.IsAny<Caso>()),
+            Times.Never);
     }
     [Fact]
     public async Task EjecutarAsync_TituloYDescripcionConEspacios_SeNormalizanAntesDeCrear()
@@ -197,6 +221,45 @@ public class CrearCasoServiceTests
 
         casoCapturado.ClienteId.Should().Be(1);
         casoCapturado.Cliente.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_CasoValido_RegistraCreatedByDesdeActorServidor()
+    {
+        var cliente = new Cliente { Id = 1, Nombre = "Cliente" };
+        var request = new CrearCasoRequest
+        {
+            Titulo = "Caso válido",
+            Descripcion = "Descripción",
+            ClienteId = 1,
+            TipoCaso = TipoCaso.Civil
+        };
+        Caso? casoCapturado = null;
+
+        _clienteRepoMock
+            .Setup(r => r.ObtenerPorIdAsync(cliente.Id))
+            .ReturnsAsync(cliente);
+        _casoRepoMock
+            .Setup(r => r.CrearAsync(It.IsAny<Caso>()))
+            .Callback<Caso>(caso => casoCapturado = caso)
+            .Returns(Task.CompletedTask);
+
+        await _service.EjecutarAsync(request, " creador@legal.cl ");
+
+        casoCapturado.Should().NotBeNull();
+        casoCapturado!.CreatedBy.Should().Be("creador@legal.cl");
+        casoCapturado.ModifiedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void CrearCasoRequest_NoExponeCamposDeAuditoria()
+    {
+        var propiedades = typeof(CrearCasoRequest)
+            .GetProperties()
+            .Select(propiedad => propiedad.Name);
+
+        propiedades.Should().NotContain("CreatedBy");
+        propiedades.Should().NotContain("ModifiedBy");
     }
 
 

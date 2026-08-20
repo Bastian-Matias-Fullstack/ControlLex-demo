@@ -1,8 +1,7 @@
 ﻿using Aplicacion.Excepciones;
-using Microsoft.AspNetCore.Mvc;
+using API.Helpers;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 
 namespace API.Middlewares
 {
@@ -25,8 +24,6 @@ namespace API.Middlewares
             }
             catch (Exception ex)
             {
-                var traceId = context.TraceIdentifier;
-                _logger.LogError(ex, "❌ Error no controlado. TraceId={TraceId}", traceId);
                 var isDbError = IsDatabaseException(ex);
                 var statusCode = ex switch
                 {
@@ -37,8 +34,6 @@ namespace API.Middlewares
                     _ => StatusCodes.Status500InternalServerError
                 };
   
-                context.Response.StatusCode = statusCode;
-                context.Response.ContentType = "application/json";
                 var title = statusCode switch
                 {
                     404 => "Recurso no encontrado",
@@ -49,24 +44,30 @@ namespace API.Middlewares
                 };
 
                 // 🔒 En prod NO filtramos detalle interno
-                var safeDetail =
-                             (statusCode is 500 or 503) && !_env.IsDevelopment()
-                                 ? "Servicio temporalmente no disponible. Intenta nuevamente."
-                                 : ex.Message;
-
-                var problem = new ProblemDetails
+                var safeDetail = statusCode switch
                 {
-                    Status = statusCode,
-                    Title = title,                 // ✅ usa el title que ya calculaste arriba
-                    Detail = safeDetail,
-                    Instance = context.Request.Path
+                    500 when !_env.IsDevelopment() =>
+                        "Ocurrió un error interno. Intenta nuevamente.",
+                    503 when !_env.IsDevelopment() =>
+                        "Servicio temporalmente no disponible. Intenta nuevamente.",
+                    _ => ex.Message
                 };
-                problem.Extensions["traceId"] = traceId;
-                var json = JsonSerializer.Serialize(problem, new JsonSerializerOptions
+
+                if (statusCode >= StatusCodes.Status500InternalServerError)
                 {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                });
-                await context.Response.WriteAsync(json);
+                    _logger.LogError(ex, "Error no controlado. TraceId={TraceId}", context.TraceIdentifier);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Solicitud rechazada. StatusCode={StatusCode} TraceId={TraceId}",
+                        statusCode,
+                        context.TraceIdentifier);
+                }
+
+                var problem = ApiError.Create(statusCode, title, safeDetail, context);
+                await ApiError.WriteAsync(context, problem, context.RequestAborted);
             }
         }
 

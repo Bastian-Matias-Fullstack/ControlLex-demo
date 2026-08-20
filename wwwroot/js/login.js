@@ -6,6 +6,10 @@
     void mensajeError.offsetWidth;          // Trigger reflow
     mensajeError.classList.add("shake");    // Aplicar animación
 }
+
+if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    document.getElementById("bg-video")?.pause();
+}
 // ===============================
 // Demo Context Handling (SE2)
 // ===============================

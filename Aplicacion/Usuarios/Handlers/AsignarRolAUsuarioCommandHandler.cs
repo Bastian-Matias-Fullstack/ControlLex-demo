@@ -24,9 +24,9 @@ namespace Aplicacion.Usuarios.Handlers
             // Paso 1: Validamos que el usuario exista
             var usuario = await _usuarioRepositorio.ObtenerPorIdAsync(request.UsuarioId);
             if (usuario == null)
-                throw new Exception("Usuario no encontrado");
+                throw new NotFoundException("Usuario no encontrado");
             if (usuario.EsDemoProtegido)
-                throw new InvalidOperationException("Este usuario forma parte del entorno de demostración y no puede modificar sus roles.");
+                throw new BusinessConflictException("Este usuario forma parte del entorno de demostración y no puede modificar sus roles.");
 
             // Paso 2: Validamos que el rol exista
             var nombreRol = request.NombreRol.Trim();

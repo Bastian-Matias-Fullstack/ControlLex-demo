@@ -206,7 +206,7 @@ namespace Aplicacion.Tests.Usuarios
                 "123456"
             );
 
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<BusinessConflictException>(() =>
                 _handler.Handle(command, CancellationToken.None)
             );
 

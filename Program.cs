@@ -1,9 +1,11 @@
 using API.Middlewares;
+using API.Helpers;
 using Aplicacion.Casos;
 using Aplicacion.Repositorio;
 using Aplicacion.Servicios;
 using Aplicacion.Servicios.Auth;
 using Aplicacion.Servicios.Casos;
+using Aplicacion.Servicios.Operacional;
 using Aplicacion.Validaciones;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -12,8 +14,8 @@ using Infraestructura.Repositorios;
 using Infraestructura.Servicios;
 using MediatR;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +30,15 @@ using System.Threading.RateLimiting;
 using Aplicacion.Servicios.Demo;
 //Configuración de Servicios (DI)
 var builder = WebApplication.CreateBuilder(args);
+var isRenderWebService =
+    string.Equals(
+        builder.Configuration["RENDER"],
+        "true",
+        StringComparison.OrdinalIgnoreCase) &&
+    string.Equals(
+        builder.Configuration["RENDER_SERVICE_TYPE"],
+        "web",
+        StringComparison.OrdinalIgnoreCase);
 
 //aqui permitimos 
 //var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -53,11 +64,11 @@ builder.Services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
 builder.Services.AddScoped<IRolRepositorio, RolRepositorio>();
 builder.Services.AddScoped<IHashService, HashService>();
 builder.Services.AddScoped<IDemoResetService, DemoResetService>();
+builder.Services.AddScoped<IDatabaseWarmup, EfDatabaseWarmup>();
 builder.Services.AddScoped<DemoBootstrapService>();
 builder.Services.AddSingleton<ILoginLockoutService, LoginLockoutService>();
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssemblyContaining<Aplicacion.Usuarios.Handlers.CrearUsuarioCommandHandler>());
-builder.Services.AddHttpContextAccessor();
 //🔹 Validaciones (FluentValidation)
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -87,13 +98,9 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
                 ).ToList()
             })
             .ToList();
-        var problemDetails = new ProblemDetails
-        {
-            Title = "Solicitud inválida",
-            Status = StatusCodes.Status400BadRequest,
-            Detail = "Uno o más parámetros no cumplen el formato esperado.",
-            Instance = context.HttpContext.Request.Path
-        };
+        var problemDetails = ApiError.BadRequest(
+            "Uno o más parámetros no cumplen el formato esperado.",
+            context.HttpContext);
         problemDetails.Extensions["errors"] = errors;
         return new BadRequestObjectResult(problemDetails);
     };
@@ -181,22 +188,28 @@ if (string.IsNullOrWhiteSpace(jwtKey))
             RoleClaimType = ClaimTypes.Role,
             ClockSkew = TimeSpan.Zero
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                await ApiError.WriteAsync(
+                    context.HttpContext,
+                    ApiError.Unauthorized("Se requiere autenticación válida.", context.HttpContext),
+                    context.HttpContext.RequestAborted);
+            },
+            OnForbidden = async context =>
+            {
+                await ApiError.WriteAsync(
+                    context.HttpContext,
+                    ApiError.Forbidden("No tienes permisos para acceder a este recurso.", context.HttpContext),
+                    context.HttpContext.RequestAborted);
+            }
+        };
     });
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-});
-// Forwarded Headers (Render / reverse proxy)
-// Esto permite que ASP.NET Core reconozca el esquema HTTPS real y la IP real del cliente.
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders =
-        ForwardedHeaders.XForwardedFor |
-        ForwardedHeaders.XForwardedProto;
-    // Importante en hosting con proxy (Render): si no lo limpias,
-    // puede ignorar headers porque "no conoce" el proxy.
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
 });
 //   Rate Limiting (estricto pero usable para demo pública)
 // - Global API: 20 req/min por IP
@@ -213,14 +226,16 @@ builder.Services.AddRateLimiter(options =>
             context.HttpContext.Response.Headers.RetryAfter =
                 ((int)retryAfter.TotalSeconds).ToString();
         }
-        context.HttpContext.Response.ContentType = "application/json";
-        await context.HttpContext.Response.WriteAsync(
-            "{\"message\":\"Demasiadas solicitudes. Intenta nuevamente en unos segundos.\"}",
+        await ApiError.WriteAsync(
+            context.HttpContext,
+            ApiError.TooManyRequests(
+                "Demasiadas solicitudes. Intenta nuevamente en unos segundos.",
+                context.HttpContext),
             token);
     };
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
-        // IP (con ForwardedHeaders en Render debería ser la real)
+        // Effective client IP is resolved before the rate limiter middleware.
         var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         var path = httpContext.Request.Path.Value?.ToLowerInvariant() ?? "";
@@ -320,7 +335,18 @@ if (seedDemoRequested)
     return;
 }
 
-app.UseForwardedHeaders();
+app.Use(async (context, next) =>
+{
+    context.Connection.RemoteIpAddress =
+        ClientIpResolver.Resolve(context, isRenderWebService);
+
+    if (isRenderWebService)
+    {
+        context.Request.Scheme = Uri.UriSchemeHttps;
+    }
+
+    await next();
+});
 app.Use(async (context, next) =>
 {
     const string headerName = "X-Correlation-ID";
@@ -367,22 +393,20 @@ if (swaggerEnabled)
             var authResult = await context.AuthenticateAsync("Bearer");
             if (!authResult.Succeeded || authResult.Principal is null)
             {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    message = "No autenticado."
-                });
+                await ApiError.WriteAsync(
+                    context,
+                    ApiError.Unauthorized("No autenticado.", context),
+                    context.RequestAborted);
                 return;
             }
             context.User = authResult.Principal;
             var isAdmin = context.User.IsInRole("Admin"); // ajusta si tu rol se llama distinto
             if (!isAdmin)
             {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    message = "Acceso denegado."
-                });
+                await ApiError.WriteAsync(
+                    context,
+                    ApiError.Forbidden("Acceso denegado.", context),
+                    context.RequestAborted);
                 return;
             }
             await next();
@@ -395,8 +419,12 @@ if (swaggerEnabled)
 }
 if (app.Environment.IsProduction())
 {
-    app.UseHsts();              
-    app.UseHttpsRedirection();
+    app.UseHsts();
+
+    if (!isRenderWebService)
+    {
+        app.UseHttpsRedirection();
+    }
 }
 
 app.Use(async (context, next) =>
@@ -406,25 +434,21 @@ app.Use(async (context, next) =>
     context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     context.Response.Headers.TryAdd("Cross-Origin-Opener-Policy", "same-origin");
     context.Response.Headers.TryAdd("Cross-Origin-Resource-Policy", "same-origin");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
 
-    if (app.Environment.IsProduction() &&
-        builder.Configuration.GetValue<bool>("SecurityHeaders:EnableCsp"))
+    if (app.Environment.IsProduction())
     {
-        var frameAncestors = builder.Configuration
-            .GetSection("SecurityHeaders:FrameAncestors")
-            .Get<string[]>() ?? new[] { "'self'", "http://localhost:4200" };
-        var frameAncestorsValue = string.Join(" ", frameAncestors);
-
         var csp = string.Join(" ",
             "default-src 'self';",
             "base-uri 'self';",
             "object-src 'none';",
-            "frame-ancestors " + frameAncestorsValue + ";",
-            "img-src 'self' data: https:;",
-            "font-src 'self' https: data:;",
-            "style-src 'self' 'unsafe-inline' https:;",
-            "script-src 'self' 'unsafe-inline' https:;",
-            "connect-src 'self' https:;",
+            "frame-src 'none';",
+            "frame-ancestors 'none';",
+            "img-src 'self' data:;",
+            "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com;",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com;",
+            "script-src 'self' https://cdn.jsdelivr.net;",
+            "connect-src 'self';",
             "form-action 'self';"
         );
 
@@ -477,3 +501,5 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     ResponseWriter = WriteHealthResponse
 });
 app.Run();
+
+public partial class Program { }
