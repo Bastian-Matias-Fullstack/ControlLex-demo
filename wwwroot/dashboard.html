@@ -43,33 +43,41 @@
     </nav>
     <div id="saludoUsuarioMobile" class="saludo-usuario-mobile"></div>
     <!-- SIDEBAR -->
-    <aside id="sidebar" class="sidebar collapsed">
+    <nav id="sidebar" class="sidebar collapsed" aria-label="Navegación principal">
         <button class="sidebar-toggle" type="button" aria-label="Abrir menú de navegación">
             ☰
         </button>
 
         <ul class="sidebar-menu">
-            <li id="nav-dashboard">
-                <i class="bi bi-speedometer2"></i>
-                <span>Resumen</span>
+            <li>
+                <button id="nav-dashboard" class="sidebar-nav-button" type="button">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Resumen</span>
+                </button>
             </li>
 
-            <li id="nav-casos">
-                <i class="bi bi-folder2-open"></i>
-                <span>Casos</span>
+            <li>
+                <button id="nav-casos" class="sidebar-nav-button" type="button">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Casos</span>
+                </button>
             </li>
 
-            <li id="nav-usuarios">
-                <i class="bi bi-people"></i>
-                <span>Usuarios</span>
+            <li>
+                <button id="nav-usuarios" class="sidebar-nav-button" type="button">
+                    <i class="bi bi-people"></i>
+                    <span>Usuarios</span>
+                </button>
             </li>
 
-            <li id="nav-roles">
-                <i class="bi bi-shield-lock"></i>
-                <span>Roles</span>
+            <li>
+                <button id="nav-roles" class="sidebar-nav-button" type="button">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Roles</span>
+                </button>
             </li>
         </ul>
-    </aside>
+    </nav>
 
     <div id="sidebarOverlay" class="sidebar-overlay"></div>
     <div class="container mt-4 mb-5">
@@ -425,7 +433,7 @@
 
 
                         <div class="mb-3">
-                            <label class="form-label text-uppercase small">Estado</label>
+                            <span class="form-label text-uppercase small">Estado</span>
                             <span id="form-estado" class="badge bg-secondary"></span>
                         </div>
                         <div class="mb-3">
@@ -839,7 +847,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-    <script src="/js/libs/html2pdf.bundle.min.js?v=pdf-sandbox-20260428"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="/js/dashboard.js?v=casos-listado-detalle-lock-1"></script>
 </body>

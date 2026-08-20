@@ -110,16 +110,16 @@ input.form-control {
 }
 
 .password-input {
-    padding-right: 3.2rem;
+    padding-right: 3.5rem;
 }
 
 .toggle-password-btn {
     position: absolute;
     top: 50%;
-    right: 0.85rem;
+    right: 0.5rem;
     transform: translateY(-50%);
-    width: 2rem;
-    height: 2rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border: none;
     background: transparent;
     color: rgba(75, 85, 99, 0.85);
@@ -293,3 +293,14 @@ button.btn {
         opacity: 1;
         z-index: 9999;
     }
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}

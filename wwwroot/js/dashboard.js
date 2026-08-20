@@ -202,11 +202,7 @@ function resolverModuloInicial(roles, moduloSolicitado) {
             history.replaceState(null, "", `#${fallback}`);
 
             // Marcar activo el item del menú del fallback
-            document.querySelectorAll(".sidebar-menu li")
-                .forEach(li => li.classList.remove("active"));
-
-            const fallbackNavId = "nav-" + fallback.replace("mod-", "");
-            document.getElementById(fallbackNavId)?.classList.add("active");
+            actualizarNavegacionActiva(fallback);
 
             //  Ejecutar lógica de carga del módulo fallback
             onModuloCargado(fallback);
@@ -221,17 +217,28 @@ function resolverModuloInicial(roles, moduloSolicitado) {
         history.replaceState(null, "", `#${moduloId}`);
   
     // 2️ Estado activo del menú
-    document.querySelectorAll(".sidebar-menu li")
-        .forEach(li => li.classList.remove("active"));
-
-    const navId = "nav-" + moduloId.replace("mod-", "");
-    document.getElementById(navId)?.classList.add("active");
+    actualizarNavegacionActiva(moduloId);
     // AQUÍ SE ENGANCHA EL PASO 1
     onModuloCargado(moduloId);
         aplicarVisibilidadPorRol(roles);
         if (isMobileViewport()) {
             closeSidebarMobile();
         }
+}
+
+function actualizarNavegacionActiva(moduloId) {
+    const navId = "nav-" + moduloId.replace("mod-", "");
+
+    document.querySelectorAll(".sidebar-nav-button").forEach(button => {
+        const isActive = button.id === navId;
+        button.classList.toggle("active", isActive);
+
+        if (isActive) {
+            button.setAttribute("aria-current", "page");
+        } else {
+            button.removeAttribute("aria-current");
+        }
+    });
 }
 // Demo Context 
 const demoContext = sessionStorage.getItem("demoContext"); 
@@ -286,6 +293,10 @@ function cargarModulosPorRol(roles) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        document.getElementById("bg-video-dashboard")?.pause();
+    }
 
     document.querySelector(".sidebar-toggle")?.addEventListener("click", toggleSidebar);
     document.getElementById("nav-dashboard")?.addEventListener("click", () => navigate("mod-dashboard"));
@@ -446,6 +457,7 @@ function setBotonCargando(btn, cargando, htmlCargando = null) {
     window.addEventListener("resize", () => {
         renderSaludoUsuario(usuario);
     });
+    recargarCasos = cargarCasosDesdeBackend;
     cargarCasosDesdeBackend();
     initPdfExport();
 
@@ -730,12 +742,13 @@ async function cargarCasosDesdeBackend() {
         const pendientes = Number(metricas.casos.pendientes ?? 0);
         const resueltos = Number(metricas.casos.cerrados ?? 0);
         const enProceso = Number(metricas.casos.enProceso ?? 0);
+        const casosActivos = total - resueltos;
 
         const tasaCierre = total > 0
             ? `${Math.round((resueltos / total) * 100)}%`
             : "0%";
 
-        if (totalCasosEl) totalCasosEl.textContent = total;
+        if (totalCasosEl) totalCasosEl.textContent = casosActivos;
         if (casosPendientesEl) casosPendientesEl.textContent = pendientes;
         if (casosResueltosEl) casosResueltosEl.textContent = resueltos;
         if (tasaCierreEl) tasaCierreEl.textContent = tasaCierre;
@@ -1756,12 +1769,12 @@ function mostrarModulo(id) {
     }
 }
 // LOADER POR MÓDULO (PASO 1)
+let recargarCasos = null;
+
 function onModuloCargado(moduloId) {
   switch (moduloId) {
     case "mod-casos":
-      if (typeof cargarCasosDesdeBackend === "function") {
-        cargarCasosDesdeBackend();
-      }
+      recargarCasos?.();
       break;
 
     case "mod-usuarios":
@@ -1821,6 +1834,12 @@ window.addEventListener("resize", () => {
 async function cargarClientes() {
     const select = document.getElementById("form-cliente");
     if (!select) return;
+
+    const token = localStorage.getItem("jwt_token");
+    if (!token) {
+        clearSessionAndRedirect("missing-token-clientes");
+        return;
+    }
 
     // La función se vuelve autosuficiente:
     // siempre deja el select limpio antes de cargar opciones nuevas.
