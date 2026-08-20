@@ -36,6 +36,12 @@
 	  <Content Remove="appsettings.Example.Production.json" />
 	</ItemGroup>
 	<ItemGroup>
+		<Content Update="appsettings.*.json">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+			<CopyToPublishDirectory>Never</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup>
 		<PackageReference Include="fluentValidation.AspNetCore" Version="11.3.0" />
 		<PackageReference Include="MediatR" Version="12.5.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.29" />	
