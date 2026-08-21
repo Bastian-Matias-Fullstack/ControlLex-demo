@@ -220,10 +220,7 @@ try {
         if (ctx === "casos") hash = "#mod-casos";
         else if (ctx === "roles") hash = "#mod-roles";
         else if (ctx === "usuarios") hash = "#mod-usuarios";
-
- 
         window.location.replace("dashboard.html" + hash);
-
 
 } catch (error) {
     console.error("Login error:", error);

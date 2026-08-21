@@ -434,6 +434,12 @@ app.Use(async (context, next) =>
     context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     context.Response.Headers.TryAdd("Cross-Origin-Opener-Policy", "same-origin");
     context.Response.Headers.TryAdd("Cross-Origin-Resource-Policy", "same-origin");
+    var frameAncestors = builder.Configuration
+    .GetSection("SecurityHeaders:FrameAncestors")
+    .Get<string[]>()?
+    .Where(x => !string.IsNullOrWhiteSpace(x))
+    .ToArray()
+    ?? new[] { "'self'" };
 
     if (app.Environment.IsProduction())
     {
@@ -442,7 +448,7 @@ app.Use(async (context, next) =>
             "base-uri 'self';",
             "object-src 'none';",
             "frame-src 'none';",
-            "frame-ancestors 'self' https://bastian-fullstack.vercel.app;",
+            $"frame-ancestors {string.Join(" ", frameAncestors)};",
             "img-src 'self' data:;",
             "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com;",
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com;",
