@@ -220,13 +220,15 @@ public sealed class HttpContractTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var csp = response.Headers.GetValues("Content-Security-Policy").Single();
         Assert.Contains("object-src 'none';", csp);
-        Assert.Contains("frame-ancestors 'none';", csp);
+        Assert.Contains(
+            "frame-ancestors 'self' https://bastian-fullstack.vercel.app;",
+            csp);
         Assert.Contains("script-src 'self' https://cdn.jsdelivr.net;", csp);
         Assert.DoesNotContain("script-src 'self' 'unsafe-inline'", csp);
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
         Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
         Assert.Equal("camera=(), microphone=(), geolocation=()", response.Headers.GetValues("Permissions-Policy").Single());
-        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.False(response.Headers.Contains("X-Frame-Options"));
     }
 
     [Fact]
