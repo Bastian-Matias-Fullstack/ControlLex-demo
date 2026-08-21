@@ -240,8 +240,17 @@ function actualizarNavegacionActiva(moduloId) {
         }
     });
 }
-// Demo Context 
-const demoContext = sessionStorage.getItem("demoContext"); 
+// Demo Context
+const params = new URLSearchParams(window.location.search);
+
+const urlDemoContext = params.get("demo");
+
+if (urlDemoContext) {
+    sessionStorage.setItem("demoContext", urlDemoContext);
+}
+
+const demoContext = sessionStorage.getItem("demoContext");
+
 function applyDemoContextVisibility(context) {
     const casos = document.getElementById("tablaCasosWrapper");
     const roles = document.getElementById("seccion-gestion-roles");
@@ -329,6 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
     configurarSidebarPorRoles(roles);
     aplicarVisibilidadPorRol(roles);
     cargarModulosPorRol(roles);
+    applyDemoContextVisibility(demoContext);
 
     const hashModulo = (window.location.hash || "").replace("#", "").trim();
     const moduloSolicitado = hashModulo || null;

@@ -221,8 +221,7 @@ try {
         else if (ctx === "roles") hash = "#mod-roles";
         else if (ctx === "usuarios") hash = "#mod-usuarios";
 
-        // Limpieza opcional para no reutilizarlo en el siguiente login
-        sessionStorage.removeItem("demoContext");
+ 
         window.location.replace("dashboard.html" + hash);
 
 
